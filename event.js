@@ -662,14 +662,14 @@ async function exportEventQRSheet() {
 let _adminAction = null;
 
 function promptAdminAction(action) {
-  // TESTING MODE — passwords disabled. Run action immediately.
-  // To re-enable, restore the original modal-based flow.
-  if (action === 'edit')           editEvent();
-  else if (action === 'delete')    deleteEventFromPage();
-  else if (action === 'back')      goBackToEvents();
-  else if (action === 'editparts') toggleParticipantList();
-  else if (action === 'certs')     openCertificatePicker(eventId);
-  else if (action === 'cert-preview') openCertificatePicker(eventId);
+  _adminAction = action;
+  const modal = document.getElementById('admin-pwd-modal');
+  if (modal) {
+    document.getElementById('admin-pwd-input').value = '';
+    document.getElementById('admin-pwd-err').textContent = '';
+    modal.style.display = 'flex';
+    document.getElementById('admin-pwd-input').focus();
+  }
 }
 
 function promptEditEvent() { promptAdminAction('edit'); }
