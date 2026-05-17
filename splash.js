@@ -1,7 +1,17 @@
 // ── METSS LBG Splash Screen ──────────────────────────────────────────
-// Shows once per browser session. Requires metss-logo.png in repo root.
+// Inject a blocking <style> immediately to hide page content until splash is ready.
 (function () {
-  if (sessionStorage.getItem('metss_splash_shown')) return;
+  // Inject hide-body style as early as possible
+  const blockStyle = document.createElement('style');
+  blockStyle.id = 'splash-block';
+  blockStyle.textContent = 'body > *:not(#metss-splash) { visibility: hidden !important; }';
+  document.head.appendChild(blockStyle);
+
+  if (sessionStorage.getItem('metss_splash_shown')) {
+    // Already shown — remove block immediately and exit
+    blockStyle.remove();
+    return;
+  }
   sessionStorage.setItem('metss_splash_shown', '1');
 
   const overlay = document.createElement('div');
@@ -13,6 +23,9 @@
     </div>
   `;
   document.body.appendChild(overlay);
+
+  // Reveal page content behind splash
+  blockStyle.remove();
 
   requestAnimationFrame(() => {
     overlay.classList.add('splash-visible');
