@@ -858,20 +858,16 @@ ${ev.mel_question ? '- MEL question asked: ' + ev.mel_question : ''}
 
 Write the summary now.`;
 
-    // Call Claude API
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call Claude API via Cloudflare Worker (handles API key + CORS)
+    const response = await fetch('https://participants-email.metsslbg.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      body: JSON.stringify({ type: 'mel_summary', prompt })
     });
 
     const data = await response.json();
-    const text = data.content?.[0]?.text;
-    if (!text) throw new Error('No response from Claude');
+    const text = data.content?.[0]?.text || data.text;
+    if (!text) throw new Error('No response from Claude. Check worker configuration.');
 
     // Display result
     loading.style.display = 'none';
