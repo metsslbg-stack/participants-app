@@ -21,10 +21,10 @@
         '<p class="splash-tagline">Creating Sustainable Wealth One Person at a Time</p>' +
       '</div>';
 
-    // Append overlay BEFORE revealing — page stays hidden while splash is added
+    // Overlay added FIRST — page still hidden
     document.body.appendChild(overlay);
 
-    // Now reveal — splash is already on top
+    // THEN reveal — splash is already covering the page
     reveal();
 
     setTimeout(function () {
