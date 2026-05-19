@@ -60,6 +60,8 @@ function openCertPicker(previewMode) {
   });
   modal.style.display = 'flex';
 }
+function openCertificatePicker(eid) { openCertPicker(false); }
+
 
 
 function showCertPreviewImage(doc, templateName) {
