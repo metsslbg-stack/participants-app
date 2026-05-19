@@ -64,8 +64,7 @@
 
         <button id="share-prereg-btn" onclick="copyShareLink('prereg')" style="padding:14px 8px;background:white;border:1.5px solid var(--orange);border-radius:var(--radius-md);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--orange);text-align:center">📋 Pre-reg Link</button>
 
-        <!-- Claude MEL Summary -->
-        <button onclick="generateMELSummary()" style="padding:14px 8px;background:linear-gradient(135deg,#2F7B6B,#1a5248);color:white;border:none;border-radius:var(--radius-md);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">🤖 MEL Summary</button>
+
 
         <!-- Row 3: Admin actions (password protected) -->
         <button onclick="promptAdminAction('editparts')" id="edit-participants-btn" style="display:none;padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">✏ Edit Participants</button>
@@ -110,25 +109,6 @@
   <script src="certificates.js"></script>
   <script src="event.js" defer></script>
 
-  <!-- MEL Summary Modal -->
-  <div id="mel-summary-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9998;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto">
-    <div style="background:white;border-radius:14px;max-width:600px;width:100%;margin:auto">
-      <div style="background:linear-gradient(135deg,#2F7B6B,#1a5248);border-radius:14px 14px 0 0;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.7);letter-spacing:2px">CLAUDE AI</div>
-          <div style="font-size:16px;font-weight:800;color:white">MEL Summary</div>
-        </div>
-        <button onclick="document.getElementById('mel-summary-modal').style.display='none'" style="background:rgba(255,255,255,0.15);color:white;border:none;width:34px;height:34px;border-radius:50%;font-size:20px;cursor:pointer">×</button>
-      </div>
-      <div id="mel-summary-loading" style="padding:2rem;text-align:center;display:none">
-        <div style="width:36px;height:36px;border:3px solid #e0e0e0;border-top-color:#2F7B6B;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 1rem"></div>
-        <p style="color:#666;font-size:13px">Claude is analysing your event data...</p>
-      </div>
-      <div id="mel-summary-content" style="padding:1.25rem;font-size:14px;line-height:1.7;color:#333;white-space:pre-wrap;display:none"></div>
-      <div id="mel-summary-actions" style="padding:12px 16px;border-top:1px solid #eee;display:none;gap:8px;flex-wrap:wrap">
-        <button onclick="copyMELSummary()" style="flex:1;padding:10px;background:#2F7B6B;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">📋 Copy to Clipboard</button>
-        <button onclick="generateMELSummary()" style="flex:1;padding:10px;background:white;color:#2F7B6B;border:1.5px solid #2F7B6B;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">🔄 Regenerate</button>
-      </div>
     </div>
   </div>
 
