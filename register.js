@@ -292,6 +292,9 @@ function exitRegistration() {
 async function findByCode() {
   const raw = document.getElementById('code-input').value.trim().toUpperCase();
   if (!raw) return;
+  // Clear previous results
+  const phoneRes = document.getElementById('phone-results');
+  if (phoneRes) { phoneRes.innerHTML = ''; }
   const rawNorm = raw.replace(/[^0-9]/g, ''); // digits only for phone matching
   // Find all matches — by code or partial phone
   const matches = allParticipants.filter(x => {
@@ -312,6 +315,7 @@ async function findByCode() {
   } else {
     // Show list if multiple phone matches
     const container = document.getElementById('phone-results');
+    container.style.display = 'block';
     container.innerHTML = '<p style="font-size:12px;color:#888;margin-bottom:6px">' + matches.length + ' matches — select one:</p>' +
       matches.slice(0,8).map(p =>
         '<div class="result-item" onclick="selectResult(\'' + p.id + '\')">' +
