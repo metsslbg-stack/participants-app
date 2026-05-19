@@ -1,9 +1,21 @@
-// ── Splash Screen — runs after DOM is ready ───────────────────────
+// ── Splash Screen ─────────────────────────────────────────────────
 (function () {
-  if (sessionStorage.getItem('metss_splash_shown')) return;
-  sessionStorage.setItem('metss_splash_shown', '1');
+  // Hide page content immediately via inline style on html element
+  if (!sessionStorage.getItem('metss_splash_shown')) {
+    document.documentElement.style.visibility = 'hidden';
+  }
 
   function showSplash() {
+    if (sessionStorage.getItem('metss_splash_shown')) {
+      // Already shown — just reveal the page
+      document.documentElement.style.visibility = '';
+      return;
+    }
+    sessionStorage.setItem('metss_splash_shown', '1');
+
+    // Reveal page behind splash
+    document.documentElement.style.visibility = '';
+
     const overlay = document.createElement('div');
     overlay.id = 'metss-splash';
     overlay.innerHTML =
@@ -13,11 +25,11 @@
       '</div>';
     document.body.appendChild(overlay);
 
-    requestAnimationFrame(function() {
+    requestAnimationFrame(function () {
       overlay.classList.add('splash-visible');
-      setTimeout(function() {
+      setTimeout(function () {
         overlay.classList.add('splash-out');
-        overlay.addEventListener('transitionend', function() {
+        overlay.addEventListener('transitionend', function () {
           overlay.remove();
         }, { once: true });
       }, 2200);
