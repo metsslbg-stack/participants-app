@@ -1,22 +1,21 @@
 // ── Splash Screen ─────────────────────────────────────────────────
+// The <style id="splash-hide"> in HTML keeps page invisible until we're ready
 (function () {
-  // Hide page content immediately via inline style on html element
-  if (!sessionStorage.getItem('metss_splash_shown')) {
-    document.documentElement.style.visibility = 'hidden';
+  function reveal() {
+    var s = document.getElementById('splash-hide');
+    if (s) s.remove();
   }
 
   function showSplash() {
     if (sessionStorage.getItem('metss_splash_shown')) {
-      // Already shown — just reveal the page
-      document.documentElement.style.visibility = '';
+      reveal();
       return;
     }
     sessionStorage.setItem('metss_splash_shown', '1');
 
-    // Reveal page behind splash
-    document.documentElement.style.visibility = '';
+    reveal();
 
-    const overlay = document.createElement('div');
+    var overlay = document.createElement('div');
     overlay.id = 'metss-splash';
     overlay.innerHTML =
       '<div class="splash-inner">' +
