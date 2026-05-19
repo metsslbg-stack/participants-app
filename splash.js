@@ -1,5 +1,4 @@
 // ── Splash Screen ─────────────────────────────────────────────────
-// The <style id="splash-hide"> in HTML keeps page invisible until we're ready
 (function () {
   function reveal() {
     var s = document.getElementById('splash-hide');
@@ -13,26 +12,27 @@
     }
     sessionStorage.setItem('metss_splash_shown', '1');
 
-    reveal();
-
     var overlay = document.createElement('div');
     overlay.id = 'metss-splash';
+    overlay.className = 'splash-visible';
     overlay.innerHTML =
       '<div class="splash-inner">' +
         '<img src="metss-logo.png" alt="METSS LBG" class="splash-logo" />' +
         '<p class="splash-tagline">Creating Sustainable Wealth One Person at a Time</p>' +
       '</div>';
+
+    // Append overlay BEFORE revealing — page stays hidden while splash is added
     document.body.appendChild(overlay);
 
-    requestAnimationFrame(function () {
-      overlay.classList.add('splash-visible');
-      setTimeout(function () {
-        overlay.classList.add('splash-out');
-        overlay.addEventListener('transitionend', function () {
-          overlay.remove();
-        }, { once: true });
-      }, 2200);
-    });
+    // Now reveal — splash is already on top
+    reveal();
+
+    setTimeout(function () {
+      overlay.classList.add('splash-out');
+      overlay.addEventListener('transitionend', function () {
+        overlay.remove();
+      }, { once: true });
+    }, 2200);
   }
 
   if (document.readyState === 'loading') {
