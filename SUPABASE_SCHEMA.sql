@@ -1,6 +1,7 @@
 -- ================================================================
 -- METSS LBG Participant Registration App — Supabase Schema
--- Project: cpqhljqwxjgscdoepant.supabase.co
+-- Production project: cpqhljqwxjgscdoepant.supabase.co
+-- Staging project:    hcdgrdkahowzestlpges.supabase.co
 -- Last updated: May 2026
 -- ================================================================
 -- Run all of this in Supabase Dashboard → SQL Editor

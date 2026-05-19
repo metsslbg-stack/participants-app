@@ -35,13 +35,25 @@ async function submitEvent() {
     const btn = document.querySelector('#pane-create .btn-primary');
     btn.textContent = 'Creating...'; btn.disabled = true;
 
+    const progVal = document.getElementById('e-prog').value;
+    const progOther = val('e-prog-other');
+    const finalProg = (progVal === 'Other' && progOther) ? progOther : (progVal || null);
+    const rawCode = val('e-code');
+    const sigName = val('e-signatory-name');
+    const sigTitle = val('e-signatory-title');
+    const melReq = document.getElementById('e-mel-required') ? document.getElementById('e-mel-required').value === 'true' : false;
+
     const { data, error } = await db.from('events').insert([{
       name,
       organizer: val('e-organizer') || null,
-      program: document.getElementById('e-prog').value || null,
+      program: finalProg,
       event_date: document.getElementById('e-date').value || null,
       days: parseInt(document.getElementById('e-days').value) || 1,
-      mel_question: val('e-mel') || null
+      mel_question: val('e-mel') || null,
+      mel_question_required: melReq,
+      event_code: rawCode ? rawCode.toUpperCase() : null,
+      signatory_name: sigName || null,
+      signatory_title: sigTitle || null
     }]).select();
 
     btn.textContent = 'Create event'; btn.disabled = false;
@@ -49,15 +61,15 @@ async function submitEvent() {
     if (error) { errEl.textContent = 'Error: ' + error.message; errEl.style.display = 'inline'; return; }
     if (!data || !data.length) { errEl.textContent = 'No data returned.'; errEl.style.display = 'inline'; return; }
 
+    // Capture sig file BEFORE clearing form
+    const sigFile = document.getElementById('e-signatory-sig').files[0];
+
     ['e-name','e-organizer','e-date','e-mel','e-code','e-prog-other','e-signatory-name','e-signatory-title','e-signatory-sig'].forEach(id => document.getElementById(id).value = '');
     setMelRequired('e', false);
     document.getElementById('e-mel-required-group').style.display = 'none';
     document.getElementById('e-prog').selectedIndex = 0;
     document.getElementById('e-days').selectedIndex = 0;
     document.getElementById('e-prog-other-group').style.display = 'none';
-
-    // Upload signatory signature if provided
-    const sigFile = document.getElementById('e-signatory-sig').files[0];
     if (sigFile && data[0]) {
       const path = 'signatories/' + data[0].id + '.' + sigFile.name.split('.').pop();
       const { error: upErr } = await db.storage.from('signatures').upload(path, sigFile, { contentType: sigFile.type, upsert: true });
@@ -1358,15 +1370,23 @@ async function generateCertificates() {
 }
 
 function promptEditFromList(eventId) {
-  // TESTING MODE — password disabled
-  const BASE_URL = window.location.origin + window.location.pathname.replace('admin.html','');
-  window.location.href = BASE_URL + 'edit-event.html?event=' + eventId;
+  const pwd = prompt('Admin password:');
+  if (!pwd) return;
+  (async () => {
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd.toUpperCase().trim())))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    if (hash !== '3b33a25d09dbd7a9f00296a32852e0cb064eaaa76d4294c370b1b6da15ebb0bc') { alert('Incorrect password.'); return; }
+    const BASE_URL = window.location.origin + window.location.pathname.replace('admin.html','');
+    window.location.href = BASE_URL + 'edit-event.html?event=' + eventId;
+  })();
 }
 
 function promptDeleteFromList(eventId) {
-  // TESTING MODE — password disabled, keep confirmation
-  if (!confirm('Delete this event and ALL its participants? This cannot be undone.')) return;
+  const pwd = prompt('Admin password to delete this event:');
+  if (!pwd) return;
   (async () => {
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd.toUpperCase().trim())))).map(b=>b.toString(16).padStart(2,'0')).join('');
+    if (hash !== '3b33a25d09dbd7a9f00296a32852e0cb064eaaa76d4294c370b1b6da15ebb0bc') { alert('Incorrect password.'); return; }
+    if (!confirm('Delete this event and ALL its participants? This cannot be undone.')) return;
     await db.from('attendance').delete().eq('event_id', eventId);
     await db.from('participants').delete().eq('event_id', eventId);
     await db.from('events').delete().eq('id', eventId);
@@ -1421,81 +1441,6 @@ function renderEventCard(e, count, index) {
   '</div>';
 }
 
-
-function showPane(name) {
-  ['create','link','events','participants','edit'].forEach(p => {
-    const el = document.getElementById('pane-' + p);
-    if (el) el.style.display = p === name ? 'block' : 'none';
-  });
-  // Show back button only when not on events pane
-  const backBtn = document.getElementById('admin-back-btn');
-  const dashBtn = document.getElementById('admin-dashboard-btn');
-  const newBtn  = document.getElementById('admin-new-btn');
-  if (backBtn) backBtn.style.display = name !== 'events' ? 'inline-flex' : 'none';
-  if (dashBtn) dashBtn.style.display = name !== 'events' ? 'none' : 'inline-flex';
-  if (newBtn)  newBtn.style.display  = name !== 'events' ? 'none' : 'inline-flex';
-  if (name === 'events') loadEvents();
-}
-
-function val(id) { return document.getElementById(id).value.trim(); }
-
-async function submitEvent() {
-  const errEl = document.getElementById('e-err');
-  try {
-    const name = val('e-name');
-    if (!name) { errEl.textContent = 'Event name is required.'; errEl.style.display = 'inline'; return; }
-    errEl.style.display = 'none';
-
-    const btn = document.querySelector('#pane-create .btn-primary');
-    btn.textContent = 'Creating...'; btn.disabled = true;
-
-    const { data, error } = await db.from('events').insert([{
-      name,
-      organizer: val('e-organizer') || null,
-      program: document.getElementById('e-prog').value || null,
-      event_date: document.getElementById('e-date').value || null,
-      days: parseInt(document.getElementById('e-days').value) || 1,
-      mel_question: val('e-mel') || null
-    }]).select();
-
-    btn.textContent = 'Create event'; btn.disabled = false;
-
-    if (error) { errEl.textContent = 'Error: ' + error.message; errEl.style.display = 'inline'; return; }
-    if (!data || !data.length) { errEl.textContent = 'No data returned.'; errEl.style.display = 'inline'; return; }
-
-    ['e-name','e-organizer','e-date','e-mel','e-code','e-prog-other','e-signatory-name','e-signatory-title','e-signatory-sig'].forEach(id => document.getElementById(id).value = '');
-    setMelRequired('e', false);
-    document.getElementById('e-mel-required-group').style.display = 'none';
-    document.getElementById('e-prog').selectedIndex = 0;
-    document.getElementById('e-days').selectedIndex = 0;
-    document.getElementById('e-prog-other-group').style.display = 'none';
-
-    // Upload signatory signature if provided
-    const sigFile = document.getElementById('e-signatory-sig').files[0];
-    if (sigFile && data[0]) {
-      const path = 'signatories/' + data[0].id + '.' + sigFile.name.split('.').pop();
-      const { error: upErr } = await db.storage.from('signatures').upload(path, sigFile, { contentType: sigFile.type, upsert: true });
-      if (!upErr) {
-        const { data: { publicUrl } } = db.storage.from('signatures').getPublicUrl(path);
-        await db.from('events').update({ signatory_signature_url: publicUrl }).eq('id', data[0].id);
-      }
-    }
-
-    document.getElementById('share-link').textContent = BASE_URL + 'index.html?event=' + data[0].id;
-    showPane('link');
-  } catch(e) {
-    errEl.textContent = 'Unexpected error: ' + e.message; errEl.style.display = 'inline';
-  }
-}
-
-function copyLink() {
-  const link = document.getElementById('share-link').textContent;
-  navigator.clipboard.writeText(link).then(() => {
-    const btn = document.querySelector('#pane-link .btn-sm');
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = 'Copy', 2000);
-  });
-}
 
 async function loadEvents() {
   document.getElementById('events-loading').style.display = 'block';
