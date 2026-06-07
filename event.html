@@ -48,13 +48,22 @@
         <div class="kpi-card"><div class="kpi-num orange" id="es-signed">0</div><div class="kpi-lbl">Signed</div></div>
       </div>
 
-      <!-- Event Readiness Checklist — advisory panel -->
-      <div id="readiness-panel" style="display:none;margin-bottom:1.25rem;border:1.5px solid #e0e0e0;border-radius:12px;overflow:hidden">
-        <div style="background:#f8f8f8;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e0e0e0">
-          <span style="font-size:12px;font-weight:700;color:#333;letter-spacing:0.5px">EVENT READINESS</span>
-          <button onclick="document.getElementById('readiness-panel').style.display='none'" style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;padding:0;line-height:1">✕</button>
+      <!-- Event Readiness — admin diagnostic, hidden by default -->
+      <div style="margin-bottom:1.25rem">
+        <button id="readiness-toggle" type="button"
+          onclick="(function(){var p=document.getElementById('readiness-panel');p.style.display=(p.style.display==='none'||!p.style.display)?'block':'none';})()"
+          style="display:inline-flex;align-items:center;gap:8px;background:#f8f8f8;border:1.5px solid #e0e0e0;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;color:#555;cursor:pointer;font-family:inherit;letter-spacing:0.3px">
+          <span id="readiness-toggle-dot" style="width:8px;height:8px;border-radius:50%;background:#bbb;flex-shrink:0"></span>
+          <span>Event readiness</span>
+          <span id="readiness-toggle-status" style="font-weight:600;color:#888"></span>
+        </button>
+        <div id="readiness-panel" style="display:none;margin-top:10px;border:1.5px solid #e0e0e0;border-radius:12px;overflow:hidden">
+          <div style="background:#f8f8f8;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e0e0e0">
+            <span style="font-size:12px;font-weight:700;color:#333;letter-spacing:0.5px">EVENT READINESS</span>
+            <button type="button" onclick="document.getElementById('readiness-panel').style.display='none'" style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;padding:0;line-height:1">✕</button>
+          </div>
+          <div id="readiness-list" style="padding:10px 16px 12px"></div>
         </div>
-        <div id="readiness-list" style="padding:10px 16px 12px"></div>
       </div>
 
       <!-- Registration Desk — hero button -->

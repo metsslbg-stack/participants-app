@@ -323,7 +323,25 @@ function renderReadinessChecklist(ev, participantCount) {
     : passed + ' of ' + total + ' checks passed';
   list.innerHTML += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:11px;font-weight:700;color:' + summaryColor + '">' + summaryText + '</div>';
 
-  panel.style.display = 'block';
+  // Admin toggle reflects readiness subtly; full checklist stays collapsed until clicked.
+  const _rDot = document.getElementById('readiness-toggle-dot');
+  const _rStatus = document.getElementById('readiness-toggle-status');
+  if (_rDot && _rStatus) {
+    if (allPassed && allAdvisoryPassed) {
+      _rDot.style.background = '#009444';
+      _rStatus.textContent = 'Ready';
+      _rStatus.style.color = '#009444';
+    } else if (allPassed) {
+      _rDot.style.background = '#009444';
+      _rStatus.textContent = 'Ready \u2014 advisory items remain';
+      _rStatus.style.color = '#888';
+    } else {
+      _rDot.style.background = '#FF5F00';
+      _rStatus.textContent = passed + ' of ' + total + ' checks passed';
+      _rStatus.style.color = '#FF5F00';
+    }
+  }
+  // Do not auto-open the panel.
 }
 
 async function init() {
