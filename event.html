@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v2.1 status -->
 <html lang="en">
 <head>
   <style id="splash-hide">html{visibility:hidden}</style>
@@ -8,7 +9,7 @@
   <link rel="stylesheet" href="style.css" />
 
   <script src="splash.js"></script>
-</head>
+  </head>
 <body>
   <div id="no-event" style="display:none">
     <div class="empty-state">
@@ -20,8 +21,9 @@
   <div id="event-ui" style="display:none">
     <div class="reg-header">
       <img src="banner.jpg" alt="" class="reg-header-banner" />
-      <div class="reg-header-content"><p class="reg-form-name">EVENT ADMIN FORM</p>
+      <div class="reg-header-content"><p class="reg-form-name">EVENT DASHBOARD</p>
       <p class="reg-header-sub" id="event-code-prog"></p>
+      <span id="event-status-badge" style="display:none;margin-top:4px;padding:2px 12px;border-radius:20px;font-size:11px;font-weight:700"></span>
       <p class="reg-header-title" id="event-name"></p>
       <p class="reg-header-meta" id="event-meta"></p>
       </div>
@@ -31,7 +33,7 @@
       <!-- Header row -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:10px">
-          <button class="reg-back-btn" id="back-to-events-btn" onclick="goBackToEvents()">← Back to All Events Dashboard Form</button>
+          <button class="reg-back-btn" id="back-to-events-btn" onclick="goBackToEvents()">← Back to Events</button>
         </div>
         <a href="help.html?from=event" style="width:36px;height:36px;border-radius:50%;border:2px solid var(--orange);background:white;color:var(--orange);font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;text-decoration:none;flex-shrink:0">?</a>
       </div>
@@ -41,15 +43,24 @@
       <div id="event-stats-row" class="kpi-grid" style="margin-bottom:1.25rem">
         <div class="kpi-card"><div class="kpi-num orange" id="es-total">0</div><div class="kpi-lbl">Total</div></div>
         <div class="kpi-card"><div class="kpi-num" id="es-prereg">0</div><div class="kpi-lbl">Pre-reg</div></div>
-        <div class="kpi-card"><div class="kpi-num" id="es-walkin">0</div><div class="kpi-lbl">Walk-in</div></div>
+        <div class="kpi-card"><div class="kpi-num" id="es-walkin">0</div><div class="kpi-lbl">Same-day</div></div>
         <div class="kpi-card"><div class="kpi-num green" id="es-female">0</div><div class="kpi-lbl">Female</div></div>
         <div class="kpi-card"><div class="kpi-num orange" id="es-signed">0</div><div class="kpi-lbl">Signed</div></div>
       </div>
 
-      <!-- Participant Reg Form — hero button -->
+      <!-- Event Readiness Checklist — advisory panel -->
+      <div id="readiness-panel" style="display:none;margin-bottom:1.25rem;border:1.5px solid #e0e0e0;border-radius:12px;overflow:hidden">
+        <div style="background:#f8f8f8;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e0e0e0">
+          <span style="font-size:12px;font-weight:700;color:#333;letter-spacing:0.5px">EVENT READINESS</span>
+          <button onclick="document.getElementById('readiness-panel').style.display='none'" style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;padding:0;line-height:1">✕</button>
+        </div>
+        <div id="readiness-list" style="padding:10px 16px 12px"></div>
+      </div>
+
+      <!-- Registration Desk — hero button -->
       <div style="margin-bottom:1.25rem">
-        <button onclick="openRegistration()" style="width:100%;padding:20px;background:linear-gradient(90deg,var(--red) 0%,var(--orange) 100%);color:white;border:none;border-radius:var(--radius-lg);font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(235,0,27,0.35);letter-spacing:0.01em">
-          Participant Reg Form →
+        <button id="btn-walkin" onclick="openRegistration()" style="width:100%;padding:20px;background:linear-gradient(90deg,var(--red) 0%,var(--orange) 100%);color:white;border:none;border-radius:var(--radius-lg);font-size:18px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 16px rgba(235,0,27,0.35);letter-spacing:0.01em">
+          Registration Desk →
         </button>
       </div>
 
@@ -57,20 +68,27 @@
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem">
 
         <!-- Row 1: Exports — most used during/after event -->
-        <button id="export-pdf-btn" onclick="exportEventPDF()" style="padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">📄 Export PDF</button>
-        <button onclick="exportEventQRSheet()" style="padding:14px 8px;background:white;border:1.5px solid var(--black);border-radius:var(--radius-md);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:center">🖨 Print QR Cards</button>
-        <button onclick="showEventCheckinQR()" style="padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">📲 Scan &amp; Sign-in QR</button>
+        <button id="btn-export-pdf" onclick="exportEventPDF()" style="padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">📄 Export PDF</button>
+        <button id="btn-qr-sheet" onclick="exportEventQRSheet()" style="padding:14px 8px;background:white;border:1.5px solid var(--black);border-radius:var(--radius-md);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:center">🖨 Print QR Cards</button>
+        <button id="btn-checkin-qr" onclick="showEventCheckinQR()" style="padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">📲 Scan &amp; Sign-in QR</button>
 
         <!-- Row 2: Certificates + Pre-reg link -->
-        <button id="cert-btn" onclick="promptAdminAction('certs')" style="display:none;padding:14px 8px;background:var(--yellow);border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--black);text-align:center">🎓 Certificates</button>
+        <button id="btn-certs" onclick="promptAdminAction('certs')" style="display:none;padding:14px 8px;background:var(--yellow);border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--black);text-align:center">🎓 Certificates</button>
 
-        <button id="share-prereg-btn" onclick="copyShareLink('prereg')" style="padding:14px 8px;background:white;border:1.5px solid var(--orange);border-radius:var(--radius-md);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--orange);text-align:center">📋 Pre-reg Link</button>
+        <button id="btn-prereg-link" onclick="copyShareLink('prereg')" style="padding:14px 8px;background:white;border:1.5px solid var(--orange);border-radius:var(--radius-md);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--orange);text-align:center">📋 Pre-reg Link</button>
 
 
+
+        <!-- Row 2b: Attendance monitoring -->
+        <button id="btn-not-signed" onclick="openUnsigned()" style="padding:14px 8px;background:white;border:1.5px solid var(--red);border-radius:var(--radius-md);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--red);text-align:center">⚠ Not Yet Signed</button>
+
+        <!-- Row 2c: Self-sign links (Live only, shown by applyStatusVisibility) -->
+        <button id="btn-self-sign-inperson" onclick="copyShareLink('self-inperson')" style="display:none;padding:14px 8px;background:white;border:1.5px solid #009444;border-radius:var(--radius-md);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:#009444;text-align:center">📱 In-person Sign Link</button>
+        <button id="btn-self-sign-online" onclick="copyShareLink('self-online')" style="display:none;padding:14px 8px;background:white;border:1.5px solid #1565c0;border-radius:var(--radius-md);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;color:#1565c0;text-align:center">💻 Online Sign Link</button>
 
         <!-- Row 3: Admin actions (password protected) -->
-        <button onclick="promptAdminAction('editparts')" id="edit-participants-btn" style="display:none;padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">✏ Edit Participants</button>
-        <button id="import-csv-btn" onclick="importCSV()" style="display:none;padding:14px 8px;background:var(--yellow);border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--black);text-align:center">↑ Import CSV</button>
+        <button onclick="promptAdminAction('editparts')" id="btn-edit-parts" style="display:none;padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">✏ Edit Participants</button>
+        <button id="btn-import-csv" onclick="importCSV()" style="display:none;padding:14px 8px;background:var(--yellow);border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--black);text-align:center">↑ Import CSV</button>
 
       </div>
       <!-- Password modal for admin actions -->
@@ -109,6 +127,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script src="certificate-templates.js"></script>
+  <script src="audit.js"></script>
   <script src="event.js" defer></script>
 
     </div>

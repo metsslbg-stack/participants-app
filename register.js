@@ -1,11 +1,13 @@
-const SUPABASE_URL = 'https://cpqhljqwxjgscdoepant.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwcWhsanF3eGpnc2Nkb2VwYW50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMTM1NTcsImV4cCI6MjA5Mzc4OTU1N30.XATDTbvL7iDrsn-Si0crJWZebw5FSx0weWRmmcL2Z7c';
+const SUPABASE_URL = 'https://hcdgrdkahowzestlpges.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZGdyZGthaG93emVzdGxwZ2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0OTE2OTUsImV4cCI6MjA5MzA2NzY5NX0.oaG-mdgtJ4EuHUM1y3_n3fESiG3cu8RRpSb8Ww6O36c';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const params = new URLSearchParams(window.location.search);
 const eventId = params.get('event');
 const returnUrl = decodeURIComponent(params.get('return') || '') || 'event.html?event=' + eventId;
 const BASE_URL = window.location.origin + window.location.pathname.replace('register.html', '');
+const signinRoute = params.get('signin') === '1';
+const modeParam = params.get('mode');
 
 let eventData = null;
 let allParticipants = [];
@@ -16,6 +18,9 @@ let selectedSex = null;
 let activeTab = 'code';
 let sigs = {};
 let drawing = {};
+let attendanceMode = null;
+let submissionMethod = 'attendant_assisted';
+let isHybrid = false;
 
 async function init() {
   if (!eventId) return;
@@ -39,7 +44,33 @@ async function init() {
 
   const { data: ev } = await db.from('events').select('*').eq('id', eventId).single();
   if (!ev) return;
+
+  // Status-level access control — Registration Desk only works on Live events
+  const evStatus = ev.status || 'Draft';
+  if (evStatus !== 'Live') {
+    document.querySelector('.app-header').style.display = 'none';
+    document.querySelector('.stats-row') && (document.querySelector('.stats-row').style.display = 'none');
+    const main = document.getElementById('main-content') || document.body;
+    const msg = document.createElement('div');
+    msg.style.cssText = 'padding:2rem;text-align:center;margin-top:3rem';
+    msg.innerHTML = '<p style="font-size:16px;font-weight:700;color:#EB001B">Registration Desk is not available.</p><p style="color:#888">This event is currently ' + evStatus + '. Registration opens when the event is Live.</p>';
+    document.body.appendChild(msg);
+    return;
+  }
+
   eventData = ev;
+
+  // Delivery mode / hybrid setup
+  const dm = ev.delivery_mode || 'in_person';
+  isHybrid = dm === 'hybrid';
+  if (modeParam === 'in_person' || modeParam === 'online') {
+    attendanceMode = modeParam;
+  } else if (dm === 'in_person') {
+    attendanceMode = 'in_person';
+  } else if (dm === 'online') {
+    attendanceMode = 'online';
+  }
+  submissionMethod = signinRoute ? 'self_completed' : 'attendant_assisted';
 
   document.getElementById('header-event-name').textContent = ev.name;
   const dateStr = ev.event_date ? new Date(ev.event_date).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }) : '';
@@ -52,11 +83,27 @@ async function init() {
   updateStats();
   initSig('sign-canvas', 'sign');
   initSig('new-canvas', 'new');
+
+  if (isHybrid) {
+    const hSign = document.getElementById('hybrid-mode-sign');
+    const hNew = document.getElementById('hybrid-mode-new');
+    if (hSign) hSign.style.display = 'block';
+    if (hNew) hNew.style.display = 'block';
+    if (attendanceMode) setAttendanceMode(attendanceMode);
+  }
+
   showScreen('find');
-  setScreenLabel('Participant Reg Form');
-  setHeaderBtn('← Back to Event Admin Form', exitRegistration);
-  const ub = document.getElementById('unsigned-btn');
-  if (ub) ub.style.display = 'block';
+  if (signinRoute) {
+    setScreenLabel('Self Sign-in');
+    setHeaderBtn('← Back', () => window.history.back());
+    const ub = document.getElementById('unsigned-btn');
+    if (ub) ub.style.display = 'none';
+  } else {
+    setScreenLabel('Participant Reg Form');
+    setHeaderBtn('← Back to Event Admin Form', exitRegistration);
+    const ub = document.getElementById('unsigned-btn');
+    if (ub) ub.style.display = 'block';
+  }
   setTimeout(() => { const i = document.getElementById('code-input'); if(i) i.focus(); }, 400);
 }
 
@@ -415,6 +462,7 @@ async function confirmAttendance() {
   if (!selectedDay) { errEl.textContent = 'Please select a day.'; errEl.style.display = 'block'; return; }
   const att = attendanceMap[selectedParticipant.id] || {};
   if (att[selectedDay]) { errEl.textContent = selectedDay + ' already signed.'; errEl.style.display = 'block'; return; }
+  if (isHybrid && !attendanceMode) { errEl.textContent = 'Please select how you are joining today.'; errEl.style.display = 'block'; return; }
   if (isSigEmpty('sign')) { errEl.textContent = 'Please sign before confirming.'; errEl.style.display = 'block'; return; }
 
   const btn = document.getElementById('btn-confirm');
@@ -430,6 +478,11 @@ async function confirmAttendance() {
       participant_id: selectedParticipant.id, event_id: eventId, day: selectedDay, signature_url: publicUrl
     }], { onConflict: 'event_id,participant_id,day', ignoreDuplicates: false });
     if (error) throw new Error(error.message);
+    if (attendanceMode && !selectedParticipant.attendance_mode) {
+      await db.from('participants').update({ attendance_mode: attendanceMode, submission_method: submissionMethod }).eq('id', selectedParticipant.id);
+      selectedParticipant.attendance_mode = attendanceMode;
+    }
+    if (typeof logAudit === 'function') logAudit('attendance_signed', 'attendance', null, { participant_id: selectedParticipant.id, day: selectedDay, attendance_mode: attendanceMode });
     document.getElementById('success-name').textContent = selectedParticipant.name;
     document.getElementById('success-day').textContent = 'Attendance recorded for ' + selectedDay;
   const _ub = document.getElementById('unsigned-btn'); if (_ub) _ub.style.display = 'none';
@@ -468,6 +521,18 @@ function setSex(sex) {
   document.getElementById('sex-female').classList.toggle('active', sex === 'Female');
 }
 
+function setAttendanceMode(mode) {
+  attendanceMode = mode;
+  const ipSign = document.getElementById('mode-inperson-sign');
+  const onSign = document.getElementById('mode-online-sign');
+  if (ipSign) ipSign.classList.toggle('active', mode === 'in_person');
+  if (onSign) onSign.classList.toggle('active', mode === 'online');
+  const ipNew = document.getElementById('mode-inperson-new');
+  const onNew = document.getElementById('mode-online-new');
+  if (ipNew) ipNew.classList.toggle('active', mode === 'in_person');
+  if (onNew) onNew.classList.toggle('active', mode === 'online');
+}
+
 async function submitNew() {
   const errEl = document.getElementById('new-err');
   errEl.style.display = 'none';
@@ -487,6 +552,7 @@ async function submitNew() {
   if (!prog) { errEl.textContent = 'Program required.'; errEl.style.display = 'block'; return; }
   if (!pos) { errEl.textContent = 'Position required.'; errEl.style.display = 'block'; return; }
   if (!selectedDay) { errEl.textContent = 'Please select a day.'; errEl.style.display = 'block'; return; }
+  if (isHybrid && !attendanceMode) { errEl.textContent = 'Please select how you are joining today.'; errEl.style.display = 'block'; return; }
   if (isSigEmpty('new')) { errEl.textContent = 'Please sign.'; errEl.style.display = 'block'; return; }
 
   const btn = document.getElementById('btn-submit-new');
@@ -507,7 +573,9 @@ async function submitNew() {
     const { data: ins, error } = await db.from('participants').insert([{
       name, sex: selectedSex, org, prog, position_title: pos,
       email: email || null, phone: phone || null,
-      reg_type: 'Walk-in', event_id: eventId, code, day_attended: selectedDay
+      reg_type: 'Walk-in', event_id: eventId, code, day_attended: selectedDay,
+      attendance_mode: attendanceMode || null,
+      submission_method: submissionMethod || 'attendant_assisted'
     }]).select().single();
     if (error) throw new Error(error.message);
 
@@ -530,6 +598,7 @@ async function submitNew() {
         participant_id: ins.id, event_id: eventId, day: selectedDay, signature_url: publicUrl
       }], { onConflict: 'event_id,participant_id,day', ignoreDuplicates: false });
       if (attErr) throw new Error(attErr.message);
+      if (typeof logAudit === 'function') logAudit('attendance_signed', 'attendance', null, { participant_id: ins.id, day: selectedDay, reg_type: 'Walk-in' });
     } catch(stepErr) {
       await db.from('participants').delete().eq('id', ins.id);
       throw new Error('Registration incomplete — rolled back. Try again.');

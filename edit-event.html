@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="style.css" />
 
   <script src="splash.js"></script>
-</head>
+  </head>
 <body>
   <div class="reg-header">
     <img src="banner.jpg" alt="" class="reg-header-banner" />
@@ -19,7 +19,7 @@
   </div>
 
   <div class="reg-nav" style="justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border)">
-    <button class="reg-back-btn" onclick="goBack()">← Back to Event Admin Form</button>
+    <button class="reg-back-btn" onclick="goBack()">← Back to Event</button>
     <a href="help.html?from=event" style="width:36px;height:36px;border-radius:50%;border:2px solid var(--orange);background:white;color:var(--orange);font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;text-decoration:none;flex-shrink:0">?</a>
   </div>
 
@@ -46,6 +46,38 @@
           </select>
         </div>
         <div class="form-group"><label>Event Code</label><input type="text" id="e-code" placeholder="e.g. MCF-2026" /></div>
+        <div class="form-group">
+          <label>Certificate Eligibility</label>
+          <select id="e-cert-eligibility">
+            <option value="signed_once">Signed at least once (any day)</option>
+            <option value="signed_all_days">Signed all event days</option>
+            <option value="all_registered">All registered participants</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Event Status</label>
+          <select id="e-status">
+            <option value="Draft">Draft — admin only</option>
+            <option value="Open">Open — pre-registration active</option>
+            <option value="Live">Live — event day, attendance active</option>
+            <option value="Closed">Closed — exports and certificates</option>
+            <option value="Archived">Archived — read-only</option>
+          </select>
+          <p style="font-size:11px;color:#888;margin-top:4px;line-height:1.5">
+            Draft: setup only · Open: pre-registration active · Live: attendance active · Closed: exports &amp; certificates · Archived: read-only
+          </p>
+        </div>
+        <div class="form-group">
+          <label>Delivery Mode</label>
+          <select id="e-delivery-mode">
+            <option value="in_person">In-person only</option>
+            <option value="online">Online only</option>
+            <option value="hybrid">Hybrid (in-person + online)</option>
+          </select>
+          <p style="font-size:11px;color:#888;margin-top:4px;line-height:1.5">
+            In-person: venue attendance · Online: remote participants · Hybrid: both
+          </p>
+        </div>
       </div>
 
       <div class="form-group full" style="margin-top:1rem">
@@ -72,22 +104,34 @@
       </div>
 
       <p id="e-err" style="color:var(--red);font-size:13px;display:none;margin-top:1rem"></p>
+
+      <!-- Shown only when a field has changed from its loaded value -->
+      <div id="edit-change-notice" style="display:none;margin-top:1rem;padding:12px 16px;background:#fff8e1;border:1.5px solid var(--yellow);border-radius:10px">
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;color:#555;cursor:pointer;line-height:1.5">
+          <input type="checkbox" id="edit-confirm-checkbox" onchange="updateSaveBtn()" style="margin-top:2px;flex-shrink:0;width:16px;height:16px" />
+          <span>I understand that this change will affect existing attendance records and exported evidence.</span>
+        </label>
+      </div>
+
       <div class="form-actions" style="margin-top:1.5rem">
-        <button class="btn-primary" onclick="saveEvent()">Save Changes</button>
+        <button class="btn-primary" id="save-btn" onclick="saveEvent()">Save Changes</button>
         <button class="btn-secondary" onclick="goBack()">Cancel</button>
       </div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="audit.js"></script>
   <script>
-    const SUPABASE_URL = 'https://cpqhljqwxjgscdoepant.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwcWhsanF3eGpnc2Nkb2VwYW50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMTM1NTcsImV4cCI6MjA5Mzc4OTU1N30.XATDTbvL7iDrsn-Si0crJWZebw5FSx0weWRmmcL2Z7c';
+    const SUPABASE_URL = 'https://hcdgrdkahowzestlpges.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZGdyZGthaG93emVzdGxwZ2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0OTE2OTUsImV4cCI6MjA5MzA2NzY5NX0.oaG-mdgtJ4EuHUM1y3_n3fESiG3cu8RRpSb8Ww6O36c';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get('event');
     const BASE_URL = window.location.origin + window.location.pathname.replace('edit-event.html','');
     let currentSigUrl = null;
+    let _snapshot = null;
+    let _sigChanged = false;
 
     async function init() {
       if (!eventId) { alert('No event specified.'); return; }
@@ -100,6 +144,9 @@
       document.getElementById('e-date').value = ev.event_date || '';
       document.getElementById('e-days').value = ev.days || 1;
       document.getElementById('e-code').value = ev.event_code || '';
+      if (document.getElementById('e-status')) document.getElementById('e-status').value = ev.status || 'Draft';
+      if (document.getElementById('e-cert-eligibility')) document.getElementById('e-cert-eligibility').value = ev.certificate_eligibility || 'signed_once';
+      if (document.getElementById('e-delivery-mode')) document.getElementById('e-delivery-mode').value = ev.delivery_mode || 'in_person';
       document.getElementById('e-mel').value = ev.mel_question || '';
       document.getElementById('e-mel-required').value = ev.mel_question_required || 'false';
       if (ev.program) document.getElementById('e-program').value = ev.program;
@@ -113,6 +160,62 @@
         const p = document.getElementById('e-sig-preview');
         p.src = currentSigUrl; p.style.display = 'block';
       }
+
+      // Snapshot and change detection
+      takeSnapshot();
+      const watchIds = ['e-name','e-organizer','e-program','e-date','e-days','e-code',
+        'e-status','e-cert-eligibility','e-delivery-mode','e-mel','e-mel-required','e-sig-name','e-sig-title'];
+      watchIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', checkChanges);
+        if (el) el.addEventListener('change', checkChanges);
+      });
+      document.getElementById('e-sig-file').addEventListener('change', () => {
+        if (document.getElementById('e-sig-file').files.length > 0) _sigChanged = true;
+        checkChanges();
+      });
+    }
+
+    function takeSnapshot() {
+      const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+      _snapshot = {
+        name: g('e-name'), organizer: g('e-organizer'), program: g('e-program'),
+        date: g('e-date'), days: g('e-days'), code: g('e-code'),
+        status: g('e-status'), cert: g('e-cert-eligibility'), dm: g('e-delivery-mode'),
+        mel: g('e-mel'), melReq: g('e-mel-required'), sigName: g('e-sig-name'), sigTitle: g('e-sig-title')
+      };
+    }
+
+    function hasChanges() {
+      if (!_snapshot) return false;
+      if (_sigChanged) return true;
+      const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+      const cur = {
+        name: g('e-name'), organizer: g('e-organizer'), program: g('e-program'),
+        date: g('e-date'), days: g('e-days'), code: g('e-code'),
+        status: g('e-status'), cert: g('e-cert-eligibility'), dm: g('e-delivery-mode'),
+        mel: g('e-mel'), melReq: g('e-mel-required'), sigName: g('e-sig-name'), sigTitle: g('e-sig-title')
+      };
+      return Object.keys(_snapshot).some(k => _snapshot[k] !== cur[k]);
+    }
+
+    function checkChanges() {
+      const changed = hasChanges();
+      const notice = document.getElementById('edit-change-notice');
+      const cb = document.getElementById('edit-confirm-checkbox');
+      if (notice) notice.style.display = changed ? 'block' : 'none';
+      if (!changed && cb) cb.checked = false;
+      updateSaveBtn();
+    }
+
+    function updateSaveBtn() {
+      const changed = hasChanges();
+      const cb = document.getElementById('edit-confirm-checkbox');
+      const btn = document.getElementById('save-btn');
+      if (!btn) return;
+      const blocked = changed && cb && !cb.checked;
+      btn.disabled = blocked;
+      btn.style.opacity = blocked ? '0.5' : '';
     }
 
     function toggleMelRequired() {
@@ -133,9 +236,12 @@
     }
 
     async function saveEvent() {
+      if (hasChanges() && !document.getElementById('edit-confirm-checkbox').checked) {
+        showErr('Please tick the confirmation box before saving.'); return;
+      }
       const name = document.getElementById('e-name').value.trim();
       if (!name) { showErr('Event name is required.'); return; }
-      const btn = document.querySelector('.btn-primary');
+      const btn = document.getElementById('save-btn');
       btn.textContent = 'Saving...'; btn.disabled = true;
 
       try {
@@ -147,12 +253,16 @@
           if (!upErr) { const { data: { publicUrl } } = db.storage.from('signatures').getPublicUrl(path); sigUrl = publicUrl; }
         }
 
+        const newDm = document.getElementById('e-delivery-mode') ? document.getElementById('e-delivery-mode').value : 'in_person';
         const { error } = await db.from('events').update({
           name,
           organizer: document.getElementById('e-organizer').value.trim() || null,
           program: document.getElementById('e-program').value || null,
           event_date: document.getElementById('e-date').value || null,
           days: parseInt(document.getElementById('e-days').value) || 1,
+          status: document.getElementById('e-status') ? document.getElementById('e-status').value : 'Draft',
+          certificate_eligibility: document.getElementById('e-cert-eligibility') ? document.getElementById('e-cert-eligibility').value : 'signed_once',
+          delivery_mode: newDm || 'in_person',
           event_code: document.getElementById('e-code').value.trim() || null,
           mel_question: document.getElementById('e-mel').value.trim() || null,
           mel_question_required: document.getElementById('e-mel-required').value,
@@ -162,6 +272,8 @@
         }).eq('id', eventId);
 
         if (error) throw new Error(error.message);
+        const newStatus = document.getElementById('e-status') ? document.getElementById('e-status').value : null;
+        if (typeof logAudit === 'function') logAudit('event_edited', 'event', eventId, { status: newStatus, delivery_mode: newDm });
         goBack();
       } catch(e) {
         showErr('Save failed: ' + e.message);

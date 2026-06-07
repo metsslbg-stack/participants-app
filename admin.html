@@ -8,20 +8,20 @@
   <link rel="stylesheet" href="style.css" />
 
   <script src="splash.js"></script>
-</head>
+  </head>
 <body>
   <div class="app-wrapper">
     <div class="reg-header">
       <img src="banner.jpg" alt="" class="reg-header-banner" />
       <div class="reg-header-content">
-        <p class="reg-form-name">ALL EVENTS DASHBOARD FORM</p>
+        <p class="reg-form-name">ALL EVENTS</p>
         <p class="reg-header-title" style="font-size:16px;margin-top:4px">Manage your events</p>
       </div>
     </div>
 
     <!-- Sub-nav below header -->
     <div style="background:white;border-bottom:1px solid #eee;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px">
-      <button id="admin-back-btn" class="reg-back-btn" style="display:none" onclick="showPane('events')">← Back to All Events Dashboard Form</button>
+      <button id="admin-back-btn" class="reg-back-btn" style="display:none" onclick="showPane('events')">← Back to Events</button>
       <a href="dashboard.html" id="admin-dashboard-btn" class="reg-back-btn" style="text-decoration:none">Portfolio Stats</a>
       <button class="btn-action-orange" id="admin-new-btn" onclick="showPane('create')" style="padding:8px 18px;font-size:13px;font-weight:800;border-radius:8px">+ New Event</button>
       <a href="help.html?from=admin" style="width:36px;height:36px;border-radius:50%;border:2px solid var(--orange);background:white;color:var(--orange);font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;text-decoration:none;flex-shrink:0">?</a>
@@ -73,6 +73,32 @@
               <button class="toggle-btn" id="e-mel-req" onclick="setMelRequired('e',true)">Mandatory</button>
             </div>
             <input type="hidden" id="e-mel-required" value="false" />
+          </div>
+          <div class="form-group">
+            <label>Event status</label>
+            <select id="e-status">
+              <option value="Draft">Draft — admin only, links not shared</option>
+              <option value="Open">Open — pre-registration active</option>
+              <option value="Live">Live — event day, attendance active</option>
+              <option value="Closed">Closed — exports and certificates</option>
+              <option value="Archived">Archived — read-only</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Certificate eligibility</label>
+            <select id="e-cert-eligibility">
+              <option value="signed_once">Signed at least once (any day)</option>
+              <option value="signed_all_days">Signed all event days</option>
+              <option value="all_registered">All registered participants</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Delivery mode *</label>
+            <select id="e-delivery-mode">
+              <option value="in_person">In-person only</option>
+              <option value="online">Online only</option>
+              <option value="hybrid">Hybrid (in-person + online)</option>
+            </select>
           </div>
           <div class="form-group">
             <label>Signatory name (for certificates)</label>
@@ -146,6 +172,14 @@
             <label>Event code</label>
             <input type="text" id="edit-code" style="text-transform:uppercase" />
           </div>
+          <div class="form-group">
+            <label>Delivery mode</label>
+            <select id="edit-delivery-mode">
+              <option value="in_person">In-person only</option>
+              <option value="online">Online only</option>
+              <option value="hybrid">Hybrid (in-person + online)</option>
+            </select>
+          </div>
           <div class="form-group full">
             <label>Pre-registration comment or question for participants (optional)</label>
             <input type="text" id="edit-mel" oninput="toggleMelRequired('edit')" />
@@ -201,7 +235,7 @@
       <div class="pane-title">Participant Search Form</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
         <div>
-          <button class="reg-back-btn" onclick="showPane('events')" style="margin-bottom:6px">← Back to All Events Dashboard Form</button>
+          <button class="reg-back-btn" onclick="showPane('events')" style="margin-bottom:6px">← Back to Events</button>
           <h2 class="section-title" id="view-event-name" style="margin:0"></h2>
         </div>
         <div style="display:flex;gap:8px">
@@ -291,6 +325,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="audit.js"></script>
   <script src="admin.js"></script>
 
 

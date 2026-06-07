@@ -1,5 +1,5 @@
-const SUPABASE_URL = 'https://cpqhljqwxjgscdoepant.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwcWhsanF3eGpnc2Nkb2VwYW50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMTM1NTcsImV4cCI6MjA5Mzc4OTU1N30.XATDTbvL7iDrsn-Si0crJWZebw5FSx0weWRmmcL2Z7c';
+const SUPABASE_URL = 'https://hcdgrdkahowzestlpges.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZGdyZGthaG93emVzdGxwZ2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0OTE2OTUsImV4cCI6MjA5MzA2NzY5NX0.oaG-mdgtJ4EuHUM1y3_n3fESiG3cu8RRpSb8Ww6O36c';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const BASE_URL = window.location.origin + window.location.pathname.replace('admin.html', '');
 
@@ -53,7 +53,10 @@ async function submitEvent() {
       mel_question_required: melReq,
       event_code: rawCode ? rawCode.toUpperCase() : null,
       signatory_name: sigName || null,
-      signatory_title: sigTitle || null
+      signatory_title: sigTitle || null,
+      status: document.getElementById('e-status') ? document.getElementById('e-status').value : 'Draft',
+      certificate_eligibility: document.getElementById('e-cert-eligibility') ? document.getElementById('e-cert-eligibility').value : 'signed_once',
+      delivery_mode: document.getElementById('e-delivery-mode') ? document.getElementById('e-delivery-mode').value : 'in_person'
     }]).select();
 
     btn.textContent = 'Create event'; btn.disabled = false;
@@ -79,6 +82,7 @@ async function submitEvent() {
       }
     }
 
+    if (typeof logAudit === 'function') logAudit('event_created', 'event', data[0].id, { name: data[0].name, status: data[0].status || 'Draft' });
     document.getElementById('share-link').textContent = BASE_URL + 'index.html?event=' + data[0].id;
     showPane('link');
   } catch(e) {
@@ -330,6 +334,8 @@ function openEdit(e) {
   ep.value = e.program || '';
   document.getElementById('edit-prog-other-group').style.display = (e.program && !['AYAW','FIRST+II','BIA','FILMA','MCF'].includes(e.program)) ? 'block' : 'none';
   document.getElementById('edit-prog-other').value = (e.program && !['AYAW','FIRST+II','BIA','FILMA','MCF'].includes(e.program)) ? e.program : '';
+  const _dmSel = document.getElementById('edit-delivery-mode');
+  if (_dmSel) _dmSel.value = e.delivery_mode || 'in_person';
 
   const progSel = document.getElementById('edit-prog');
   progSel.value = e.program || '';
@@ -373,7 +379,8 @@ async function saveEdit() {
     mel_question_required: document.getElementById('edit-mel-required').value === 'true',
     signatory_name: document.getElementById('edit-signatory-name').value.trim() || null,
     signatory_title: document.getElementById('edit-signatory-title').value.trim() || null,
-    event_code: document.getElementById('edit-code').value.trim().toUpperCase() || null
+    event_code: document.getElementById('edit-code').value.trim().toUpperCase() || null,
+    delivery_mode: (document.getElementById('edit-delivery-mode') ? document.getElementById('edit-delivery-mode').value : null) || 'in_person'
   }).eq('id', document.getElementById('edit-id').value);
 
   btn.textContent = 'Save changes'; btn.disabled = false;
@@ -1005,6 +1012,7 @@ async function confirmImport() {
     if (!error) inserted += batch.length;
   }
 
+  if (typeof logAudit === 'function') logAudit('csv_imported', 'event', importEventId || null, { count: inserted });
   document.getElementById('import-done-msg').textContent =
     inserted + ' participant' + (inserted !== 1 ? 's' : '') + ' imported successfully.';
   showImportStep('done');
@@ -1390,6 +1398,7 @@ function promptDeleteFromList(eventId) {
     await db.from('attendance').delete().eq('event_id', eventId);
     await db.from('participants').delete().eq('event_id', eventId);
     await db.from('events').delete().eq('id', eventId);
+    if (typeof logAudit === 'function') logAudit('event_deleted', 'event', eventId, {});
     loadEvents();
   })();
 }
@@ -1400,8 +1409,21 @@ function handleEventClick(el) {
   viewParticipants(id, name);
 }
 
+// Status config — defines colour and allowed actions per status
+const STATUS_CONFIG = {
+  Draft:    { color: '#888',    bg: '#f0f0f0', label: 'Draft',    canPreReg: false, canWalkin: false, canAttend: false, canExport: false },
+  Open:     { color: '#FF5F00', bg: '#fff3ec', label: 'Open',     canPreReg: true,  canWalkin: false, canAttend: false, canExport: false },
+  Live:     { color: '#009444', bg: '#ecf7ee', label: 'Live',     canPreReg: true,  canWalkin: true,  canAttend: true,  canExport: false },
+  Closed:   { color: '#EB001B', bg: '#ffecea', label: 'Closed',   canPreReg: false, canWalkin: false, canAttend: false, canExport: true  },
+  Archived: { color: '#aaa',    bg: '#f8f8f8', label: 'Archived', canPreReg: false, canWalkin: false, canAttend: false, canExport: true  }
+};
+
+const DM_LABELS = { in_person: 'In-person', online: 'Online', hybrid: 'Hybrid' };
+const DM_COLORS = { in_person: { bg:'#ecf7ee', color:'#009444' }, online: { bg:'#e8f4fd', color:'#1565c0' }, hybrid: { bg:'#fff8e1', color:'#f57c00' } };
+
 function renderEventCard(e, count, index) {
-  // Status badge removed
+  const status = e.status || 'Draft';
+  const sc = STATUS_CONFIG[status] || STATUS_CONFIG.Draft;
   const dateStr = e.event_date
     ? new Date(e.event_date).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
     : 'No date';
@@ -1409,6 +1431,9 @@ function renderEventCard(e, count, index) {
   const meta = [prog, dateStr].filter(Boolean).join(' · ');
   const name = esc(e.name);
   const id = e.id;
+  const dm = e.delivery_mode || 'in_person';
+  const dmLabel = DM_LABELS[dm] || 'In-person';
+  const dmc = DM_COLORS[dm] || DM_COLORS.in_person;
 
   // Alternate row colours — white and light yellow
   const bg = index % 2 === 0 ? '#ffffff' : '#fffbf0';
@@ -1422,6 +1447,8 @@ function renderEventCard(e, count, index) {
     '<div style="flex:1;min-width:0">' +
       '<p style="font-size:15px;font-weight:700;color:#000;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</p>' +
       '<p style="font-size:12px;color:#888">' + meta + '</p>' +
+      '<span style="display:inline-block;margin-top:3px;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;background:' + sc.bg + ';color:' + sc.color + '">' + sc.label + '</span>' +
+      '&nbsp;<span style="display:inline-block;margin-top:3px;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;background:' + dmc.bg + ';color:' + dmc.color + '">' + dmLabel + '</span>' +
     '</div>' +
 
 
@@ -1666,6 +1693,8 @@ function openEdit(e) {
   ep.value = e.program || '';
   document.getElementById('edit-prog-other-group').style.display = (e.program && !['AYAW','FIRST+II','BIA','FILMA','MCF'].includes(e.program)) ? 'block' : 'none';
   document.getElementById('edit-prog-other').value = (e.program && !['AYAW','FIRST+II','BIA','FILMA','MCF'].includes(e.program)) ? e.program : '';
+  const _dmSel = document.getElementById('edit-delivery-mode');
+  if (_dmSel) _dmSel.value = e.delivery_mode || 'in_person';
 
   const progSel = document.getElementById('edit-prog');
   progSel.value = e.program || '';
@@ -1709,7 +1738,8 @@ async function saveEdit() {
     mel_question_required: document.getElementById('edit-mel-required').value === 'true',
     signatory_name: document.getElementById('edit-signatory-name').value.trim() || null,
     signatory_title: document.getElementById('edit-signatory-title').value.trim() || null,
-    event_code: document.getElementById('edit-code').value.trim().toUpperCase() || null
+    event_code: document.getElementById('edit-code').value.trim().toUpperCase() || null,
+    delivery_mode: (document.getElementById('edit-delivery-mode') ? document.getElementById('edit-delivery-mode').value : null) || 'in_person'
   }).eq('id', document.getElementById('edit-id').value);
 
   btn.textContent = 'Save changes'; btn.disabled = false;

@@ -1,5 +1,5 @@
-const SUPABASE_URL = 'https://cpqhljqwxjgscdoepant.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwcWhsanF3eGpnc2Nkb2VwYW50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMTM1NTcsImV4cCI6MjA5Mzc4OTU1N30.XATDTbvL7iDrsn-Si0crJWZebw5FSx0weWRmmcL2Z7c';
+const SUPABASE_URL = 'https://hcdgrdkahowzestlpges.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjZGdyZGthaG93emVzdGxwZ2VzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0OTE2OTUsImV4cCI6MjA5MzA2NzY5NX0.oaG-mdgtJ4EuHUM1y3_n3fESiG3cu8RRpSb8Ww6O36c';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const params = new URLSearchParams(window.location.search);
@@ -146,11 +146,30 @@ async function generateEventCertificates(templateKey, previewOnly) {
     const { data: ev } = await db.from('events').select('*').eq('id', eventId).single();
     if (!ev) { alert('Event not found.'); return; }
 
-    const { data: attendance } = await db.from('attendance').select('participant_id').eq('event_id', eventId);
-    const signedIds = new Set((attendance || []).map(a => a.participant_id));
-    const eligible = allParticipants.filter(p => signedIds.has(p.id));
+    // Certificate eligibility rule
+    const eligibilityRule = ev.certificate_eligibility || 'signed_once';
+    const { data: attendance } = await db.from('attendance').select('participant_id, day').eq('event_id', eventId);
+    const attRows = attendance || [];
 
-    if (!eligible.length) { alert('No participants have signed attendance yet.'); return; }
+    let eligible = [];
+    if (eligibilityRule === 'all_registered') {
+      eligible = [...allParticipants];
+    } else if (eligibilityRule === 'signed_all_days') {
+      const totalDays = ev.days || 1;
+      const daysByPart = {};
+      attRows.forEach(a => {
+        if (!daysByPart[a.participant_id]) daysByPart[a.participant_id] = new Set();
+        daysByPart[a.participant_id].add(a.day);
+      });
+      eligible = allParticipants.filter(p => (daysByPart[p.id]?.size || 0) >= totalDays);
+      if (!eligible.length) { alert('No participants have signed all ' + totalDays + ' event days yet.'); return; }
+    } else {
+      // signed_once (default)
+      const signedIds = new Set(attRows.map(a => a.participant_id));
+      eligible = allParticipants.filter(p => signedIds.has(p.id));
+    }
+
+    if (!eligible.length) { alert('No eligible participants found for the current certificate rule (' + eligibilityRule.replace(/_/g,' ') + ').'); return; }
     if (previewOnly) { eligible.splice(1); }
 
     async function loadImg(url) {
@@ -177,6 +196,7 @@ async function generateEventCertificates(templateKey, previewOnly) {
       showCertPreviewImage(doc, tpl.name);
     } else {
       const safeName = evName.replace(/\s+/g, '-');
+      if (typeof logAudit === 'function') logAudit('certificates_generated', 'event', eventId, { template: templateKey, count: eligible.length, rule: eligibilityRule });
       doc.save('certificates-' + templateKey + '-' + safeName + '-' + new Date().toISOString().slice(0,10) + '.pdf');
     }
   } catch(e) { alert('Certificate generation failed: '+e.message); console.error(e); }
@@ -212,6 +232,100 @@ async function loadEventStats() {
   } catch(e) {}
 }
 
+
+function applyStatusVisibility(status) {
+  const rules = {
+    'btn-prereg-link':         ['Open','Live'],
+    'btn-walkin':              ['Live'],
+    'btn-not-signed':          ['Live'],
+    'btn-checkin-qr':          ['Live'],
+    'btn-self-sign-inperson':  ['Live'],
+    'btn-self-sign-online':    ['Live'],
+    'btn-export-pdf':          ['Closed','Archived','Live'],
+    'btn-qr-sheet':            ['Closed','Archived'],
+    'btn-certs':               ['Closed','Archived'],
+    'btn-import-csv':          ['Draft','Open'],
+    'btn-edit-parts':          ['Draft','Open','Live','Closed'],
+  };
+  Object.entries(rules).forEach(([id, allowed]) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = allowed.includes(status) ? '' : 'none';
+  });
+  if (status === 'Archived') {
+    ['btn-walkin','btn-prereg-link','btn-not-signed','btn-checkin-qr',
+     'btn-self-sign-inperson','btn-self-sign-online','btn-import-csv','btn-edit-parts'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+}
+
+function renderReadinessChecklist(ev, participantCount) {
+  const status = ev.status || 'Draft';
+  const checks = [];
+
+  function check(label, passed, warn, note) {
+    checks.push({ label, passed, warn, note });
+  }
+
+  // Core setup checks
+  check('Event date set',           !!ev.event_date,                      false, ev.event_date ? '' : 'Add a date in Edit Event');
+  check('Number of days set',       (ev.days || 0) >= 1,                  false, '');
+  check('Event code set',           !!ev.event_code,                      true,  ev.event_code ? '' : 'Recommended for participant codes');
+  check('Status set',               !!ev.status,                          false, '');
+  check('Certificate rule set',     !!ev.certificate_eligibility,         true,  ev.certificate_eligibility ? '' : 'Set in Edit Event');
+  const dmValid = ['in_person','online','hybrid'].includes(ev.delivery_mode);
+  check('Delivery mode set',        dmValid,                               false, dmValid ? '' : 'Set in Edit Event — In-person, Online, or Hybrid');
+
+  // Participants
+  check('Participants loaded',       participantCount > 0,                 true,  participantCount > 0 ? participantCount + ' registered' : 'No participants yet');
+
+  // Signatory — optional but flagged
+  const hasSig = !!(ev.signatory_name && ev.signatory_title && ev.signatory_signature_url);
+  checks.push({ label: 'Signatory details (optional)', passed: hasSig, warn: true,
+    note: hasSig ? '' : 'Add signatory name, title & signature for certificates' });
+
+  // Status-based workflow checks
+  const preRegOk = ['Open','Live'].includes(status);
+  check('Pre-reg link available',     preRegOk, true,  preRegOk ? '' : 'Set status to Open or Live');
+  check('Registration Desk available', status === 'Live', true, status === 'Live' ? '' : 'Set status to Live on event day');
+  check('Certificates available',     ['Closed','Archived'].includes(status), true,
+    ['Closed','Archived'].includes(status) ? '' : 'Set status to Closed after the event');
+
+  // Render
+  const panel = document.getElementById('readiness-panel');
+  const list  = document.getElementById('readiness-list');
+  if (!panel || !list) return;
+
+  const allRequired = checks.filter(c => !c.warn);
+  const allPassed   = allRequired.every(c => c.passed);
+
+  list.innerHTML = checks.map(c => {
+    const icon = c.passed ? '✓' : (c.warn ? '⚠' : '✗');
+    const color = c.passed ? '#009444' : (c.warn ? '#FF5F00' : '#EB001B');
+    const noteHtml = (!c.passed && c.note) ? '<span style="font-size:10px;color:#888;margin-left:4px">' + c.note + '</span>' : '';
+    return '<div style="display:flex;align-items:baseline;gap:6px;padding:3px 0">' +
+      '<span style="font-size:12px;font-weight:700;color:' + color + ';flex-shrink:0;width:14px">' + icon + '</span>' +
+      '<span style="font-size:12px;color:#333">' + c.label + noteHtml + '</span>' +
+    '</div>';
+  }).join('');
+
+  // Summary line
+  const total = checks.length;
+  const passed = checks.filter(c => c.passed).length;
+  const summaryColor = allPassed ? '#009444' : (passed >= total * 0.7 ? '#FF5F00' : '#EB001B');
+  const advisoryPassed = checks.filter(c => c.warn && c.passed).length;
+  const advisoryTotal = checks.filter(c => c.warn).length;
+  const allAdvisoryPassed = advisoryPassed === advisoryTotal;
+  const summaryText = allPassed
+    ? (allAdvisoryPassed ? passed + ' of ' + total + ' checks passed — ready'
+      : 'Required checks passed — advisory items remain')
+    : passed + ' of ' + total + ' checks passed';
+  list.innerHTML += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;font-size:11px;font-weight:700;color:' + summaryColor + '">' + summaryText + '</div>';
+
+  panel.style.display = 'block';
+}
+
 async function init() {
   // Show Back to Events button if opened from admin
   const fromAdmin = new URLSearchParams(window.location.search).get('from') === 'admin';
@@ -236,7 +350,18 @@ async function init() {
   loadEventStats();
   document.getElementById('event-name').textContent = ev.name;
   document.getElementById('back-to-events-btn').style.display = 'inline-block';
-  // Status badge removed
+  // Status-aware UI
+  const evStatus = ev.status || 'Draft';
+  applyStatusVisibility(evStatus);
+  // Show status badge
+  const badge = document.getElementById('event-status-badge');
+  if (badge) {
+    const sc = {Draft:['#888','#f0f0f0'],Open:['#FF5F00','#fff3ec'],Live:['#009444','#ecf7ee'],Closed:['#EB001B','#ffecea'],Archived:['#aaa','#f8f8f8']}[evStatus]||['#888','#f0f0f0'];
+    badge.textContent = evStatus;
+    badge.style.color = sc[0];
+    badge.style.background = sc[1];
+    badge.style.display = 'inline-block';
+  }
   const evDisplayProg = (ev.program && ev.program !== 'Other') ? ev.program : null;
   document.getElementById('event-code-prog').textContent = [ev.event_code, evDisplayProg].filter(Boolean).join(' · ');
   document.getElementById('event-meta').textContent = [
@@ -247,6 +372,8 @@ async function init() {
   document.title = ev.name + ' — Participants';
 
   await loadParticipants();
+  // Render readiness checklist after participants are loaded
+  renderReadinessChecklist(ev, allParticipants.length);
 }
 
 async function loadParticipants() {
@@ -379,9 +506,16 @@ function filterParticipants() {
       .filter(([, set]) => set.has(p.id))
       .map(([d]) => `<a href="#" style="font-size:10px;color:var(--orange)" onclick="viewSig('${p.id}','${d}',event)">${d}</a>`)
       .join(' ');
-    const regTypeBadge = p.reg_type === 'Walk-in'
-      ? '<span style="background:#fff3e8;color:var(--orange);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">Walk-in</span>'
-      : '<span style="background:#f0f9f4;color:#005c2a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">Pre-reg</span>';
+    let regTypeBadge;
+    if (p.attendance_mode === 'online') {
+      regTypeBadge = '<span style="background:#e8f4fd;color:#1565c0;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">Online</span>';
+    } else if (p.attendance_mode === 'in_person') {
+      regTypeBadge = '<span style="background:#f0fff4;color:#2d6a4f;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">In-person</span>';
+    } else if (p.reg_type === 'Walk-in') {
+      regTypeBadge = '<span style="background:#fff3e8;color:var(--orange);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">Same-day</span>';
+    } else {
+      regTypeBadge = '<span style="background:#f0f9f4;color:#005c2a;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px">Pre-reg</span>';
+    }
     const sigUrl = BASE_URL + 'sign.html?participant=' + p.id + '&event=' + eventId + (new URLSearchParams(window.location.search).get('from') === 'admin' ? '&from=admin' : '');
     html += `<tr data-pid="${p.id}" data-url="${sigUrl}" style="cursor:pointer">
       <td style="font-weight:700;font-family:monospace;color:var(--orange)">${esc(p.code) || '&mdash;'}</td>
@@ -425,7 +559,7 @@ init();
 
 
 async function exportEventPDF() {
-  const btn = [...document.querySelectorAll('.reg-back-btn')].find(b => b.textContent === 'Export PDF');
+  const btn = document.getElementById('btn-export-pdf');
   if (btn) { btn.textContent = 'Building...'; btn.disabled = true; }
   try {
     const { jsPDF } = window.jspdf;
@@ -433,19 +567,21 @@ async function exportEventPDF() {
     const evMeta = document.getElementById('event-meta').textContent;
     const MARGIN = 30;
 
-    // Fetch attendance and event days
     const [{ data: ev }, { data: attendance }] = await Promise.all([
-      db.from('events').select('days').eq('id', eventId).single(),
+      db.from('events').select('*').eq('id', eventId).single(),
       db.from('attendance').select('*').eq('event_id', eventId).order('signed_at', { ascending: true })
     ]);
     const numDays = ev?.days || 1;
+    const dm = ev?.delivery_mode || 'in_person';
+    const dmLabel = dm === 'online' ? 'ONLINE ONLY' : dm === 'hybrid' ? 'HYBRID' : 'IN-PERSON ONLY';
+    const isHybrid = dm === 'hybrid';
+
     const attMap = {};
     (attendance || []).forEach(a => {
       if (!attMap[a.participant_id]) attMap[a.participant_id] = {};
       attMap[a.participant_id][a.day] = a;
     });
 
-    // Pre-fetch signatures
     async function urlToBase64(url) {
       try {
         const res = await fetch(url);
@@ -471,23 +607,37 @@ async function exportEventPDF() {
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
 
-    // Header
-    doc.setFillColor(235, 0, 27);   doc.rect(0, 0, pageW * 0.4, 50, 'F');
-    doc.setFillColor(255, 95, 0);   doc.rect(pageW * 0.4, 0, pageW * 0.4, 50, 'F');
-    doc.setFillColor(247, 158, 27); doc.rect(pageW * 0.8, 0, pageW * 0.2, 50, 'F');
+    // Header band — 64pt to fit 4 lines
+    doc.setFillColor(235, 0, 27);   doc.rect(0, 0, pageW * 0.4, 64, 'F');
+    doc.setFillColor(255, 95, 0);   doc.rect(pageW * 0.4, 0, pageW * 0.4, 64, 'F');
+    doc.setFillColor(247, 158, 27); doc.rect(pageW * 0.8, 0, pageW * 0.2, 64, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16); doc.setFont('helvetica', 'bold');
-    doc.text(evName, MARGIN, 22);
-    doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-    doc.text(evMeta + '  ·  ' + new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }), MARGIN, 36);
-    doc.text('Registered: ' + allParticipants.length + '   Signed: ' + Object.keys(attMap).length, MARGIN, 47);
+    doc.setFontSize(15); doc.setFont('helvetica', 'bold');
+    doc.text(evName, MARGIN, 18);
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'bold');
+    doc.text(dmLabel, MARGIN, 30);
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal');
+    doc.text(evMeta, MARGIN, 41);
+
+    // Count line — include In-person/Online breakdown for hybrid
+    const inPersonCount = allParticipants.filter(p => p.attendance_mode === 'in_person').length;
+    const onlineCount   = allParticipants.filter(p => p.attendance_mode === 'online').length;
+    let countLine = 'Registered: ' + allParticipants.length + '   Signed: ' + Object.keys(attMap).length;
+    if (isHybrid && (inPersonCount || onlineCount)) {
+      countLine += '   In-person: ' + inPersonCount + '   Online: ' + onlineCount;
+    }
+    doc.text(countLine, MARGIN, 52);
 
     const dayLabels = Array.from({ length: numDays }, (_, i) => 'Day ' + (i + 1));
+
+    // Columns — no Type column; Mode column added for hybrid only
     const FIXED_COLS = [
       { label: '#', w: 18 }, { label: 'Code', w: 38 }, { label: 'Name', w: 85 },
       { label: 'Sex', w: 24 }, { label: 'Organization', w: 90 },
-      { label: 'Position', w: 75 }, { label: 'Program', w: 70 }, { label: 'Type', w: 38 }
+      { label: 'Position', w: 75 }, { label: 'Program', w: 70 }
     ];
+    if (isHybrid) FIXED_COLS.push({ label: 'Mode', w: 38 });
+
     const usable = pageW - MARGIN * 2 - FIXED_COLS.reduce((a,b) => a + b.w, 0);
     const dayW = Math.max(55, Math.floor(usable / numDays));
     const ALL_COLS = [...FIXED_COLS, ...dayLabels.map(d => ({ label: d, w: dayW }))];
@@ -503,15 +653,14 @@ async function exportEventPDF() {
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
       ALL_COLS.forEach(c => doc.text(c.label, c.x + 2, y + 9.5));
-      // Column dividers in header
       doc.setDrawColor(80, 80, 80); doc.setLineWidth(0.4);
       ALL_COLS.forEach((c, ci) => { if (ci > 0) doc.line(c.x, y, c.x, y + 14); });
     }
 
     function trunc(s, n) { s = s||''; return s.length > n ? s.slice(0,n-1)+'…' : s; }
 
-    drawHeaderRow(58);
-    let y = 72;
+    drawHeaderRow(68);
+    let y = 82;
 
     for (let idx = 0; idx < allParticipants.length; idx++) {
       const p = allParticipants[idx];
@@ -527,10 +676,8 @@ async function exportEventPDF() {
 
       doc.setFillColor(idx % 2 === 0 ? 255 : 249, idx % 2 === 0 ? 255 : 249, idx % 2 === 0 ? 255 : 249);
       doc.rect(MARGIN, y, pageW - MARGIN * 2, rowH, 'F');
-      // Row border
       doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.4);
       doc.rect(MARGIN, y, pageW - MARGIN * 2, rowH, 'S');
-      // Column dividers
       doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.3);
       ALL_COLS.forEach((c, ci) => { if (ci > 0) doc.line(c.x, y, c.x, y + rowH); });
 
@@ -545,9 +692,13 @@ async function exportEventPDF() {
       doc.text(trunc(p.org||'',24), FIXED_COLS[4].x+2, ty);
       doc.text(trunc(p.position_title||'',20), FIXED_COLS[5].x+2, ty);
       doc.text(trunc(p.prog||'',18), FIXED_COLS[6].x+2, ty);
-      const rt = p.reg_type==='Walk-in';
-      doc.setTextColor(rt?255:0, rt?95:92, rt?0:42);
-      doc.text(rt?'Walk-in':'Pre-reg', FIXED_COLS[7].x+2, ty);
+
+      // Mode column (hybrid only)
+      if (isHybrid) {
+        const modeText = p.attendance_mode === 'online' ? 'Online' : 'In-person';
+        doc.setTextColor(p.attendance_mode === 'online' ? 21 : 45, p.attendance_mode === 'online' ? 101 : 106, p.attendance_mode === 'online' ? 192 : 79);
+        doc.text(modeText, FIXED_COLS[7].x+2, ty);
+      }
 
       // Day signature columns
       dayLabels.forEach(dl => {
@@ -562,6 +713,7 @@ async function exportEventPDF() {
           doc.rect(dc.x+2, y+2, dc.w-4, rowH-4);
         }
       });
+      doc.setTextColor(0,0,0);
       y += rowH;
     }
 
@@ -577,7 +729,7 @@ async function exportEventPDF() {
     alert('PDF export failed: ' + e.message);
     console.error(e);
   } finally {
-    if (btn) { btn.textContent = 'Export PDF'; btn.disabled = false; }
+    if (btn) { btn.textContent = '📄 Export PDF'; btn.disabled = false; }
   }
 }
 
@@ -743,10 +895,16 @@ function copyShareLink(type) {
   let url;
   if (type === 'prereg') url = BASE_URL + 'index.html?event=' + eventId;
   else if (type === 'walkin') url = BASE_URL + 'index.html?event=' + eventId + '&walkin=1';
-  else if (type === 'view') url = BASE_URL + 'event.html?event=' + eventId; // no from=admin — public link
+  else if (type === 'view') url = BASE_URL + 'event.html?event=' + eventId;
   else if (type === 'checkin') url = BASE_URL + 'checkin.html?event=' + eventId;
+  else if (type === 'self-inperson') url = BASE_URL + 'register.html?event=' + eventId + '&signin=1&mode=in_person';
+  else if (type === 'self-online') url = BASE_URL + 'register.html?event=' + eventId + '&signin=1&mode=online';
 
-  const btn = document.getElementById('share-' + type + '-btn');
+  const btnIdMap = {
+    'prereg': 'btn-prereg-link', 'walkin': 'btn-walkin',
+    'self-inperson': 'btn-self-sign-inperson', 'self-online': 'btn-self-sign-online'
+  };
+  const btn = document.getElementById(btnIdMap[type] || ('share-' + type + '-btn'));
   const orig = btn ? btn.textContent : '';
   navigator.clipboard.writeText(url).then(() => {
     if (btn) { btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = orig, 2000); }

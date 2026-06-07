@@ -18,10 +18,16 @@ CREATE TABLE IF NOT EXISTS events (
   mel_question            text,
   mel_question_required   text DEFAULT 'false',
   event_code              text,
+  status                  text DEFAULT 'Draft',
+  certificate_eligibility  text DEFAULT 'signed_once',
   signatory_name          text,
   signatory_title         text,
   signatory_signature_url text,
-  created_at              timestamptz DEFAULT now()
+  created_at              timestamptz DEFAULT now(),
+  -- Added via migration (see migration SQL below):
+  -- delivery_mode text NOT NULL DEFAULT 'in_person'
+  -- CHECK (delivery_mode IN ('in_person','online','hybrid'))
+  delivery_mode           text NOT NULL DEFAULT 'in_person'
 );
 
 CREATE TABLE IF NOT EXISTS participants (
@@ -38,7 +44,10 @@ CREATE TABLE IF NOT EXISTS participants (
   code           text,
   day_attended   text,
   reg_type       text DEFAULT 'Pre-registration',
-  created_at     timestamptz DEFAULT now()
+  created_at     timestamptz DEFAULT now(),
+  -- Added via migration (see migration SQL below):
+  attendance_mode   text,  -- 'in_person' | 'online' — set when participant signs/completes attendance
+  submission_method text   -- 'attendant_assisted' | 'self_completed' | 'admin_added'
 );
 
 CREATE TABLE IF NOT EXISTS attendance (
@@ -60,6 +69,31 @@ CREATE UNIQUE INDEX IF NOT EXISTS unique_attendance_day
 CREATE UNIQUE INDEX IF NOT EXISTS unique_participant_code_per_event
   ON participants(event_id, code)
   WHERE code IS NOT NULL;
+
+
+-- Validate certificate eligibility values
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'events_certificate_eligibility_check'
+  ) THEN
+    ALTER TABLE events
+      ADD CONSTRAINT events_certificate_eligibility_check
+      CHECK (certificate_eligibility IN ('signed_once','signed_all_days','all_registered'));
+  END IF;
+END $$;
+
+-- Validate event status values
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'events_status_check'
+  ) THEN
+    ALTER TABLE events
+      ADD CONSTRAINT events_status_check
+      CHECK (status IN ('Draft','Open','Live','Closed','Archived'));
+  END IF;
+END $$;
 
 -- Validate reg_type values
 DO $$
@@ -152,3 +186,79 @@ CREATE POLICY "public update attendance" ON attendance FOR UPDATE USING (true);
 -- CREATE POLICY "public read signatures"
 --   ON storage.objects FOR SELECT
 --   USING (bucket_id = 'signatures');
+
+-- ── AUDIT LOG ─────────────────────────────────────────────────────
+-- Tracks high-value admin and operational actions for governance
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id    uuid,
+  entity_type text NOT NULL,
+  entity_id   uuid,
+  action      text NOT NULL,
+  actor       text,
+  details     jsonb,
+  created_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "public insert audit" ON audit_log FOR INSERT WITH CHECK (true);
+CREATE POLICY "public select audit" ON audit_log FOR SELECT USING (true);
+
+-- Logged actions: event_created, event_edited, event_deleted,
+-- csv_imported, participant_edited, participant_deleted,
+-- attendance_signed, certificates_generated,
+-- delivery_mode_changed, attendance_mode_set
+
+-- ── MIGRATION SQL (run on staging first, then production after approval) ─────
+-- Staging:   hcdgrdkahowzestlpges.supabase.co
+-- Production: cpqhljqwxjgscdoepant.supabase.co  (DO NOT RUN without explicit approval)
+--
+-- alter table public.events
+--   add column if not exists delivery_mode text not null default 'in_person';
+--
+-- alter table public.participants
+--   add column if not exists attendance_mode text;
+--
+-- alter table public.participants
+--   add column if not exists submission_method text;
+--
+-- do $$ begin
+--   if not exists (select 1 from pg_constraint where conname='events_delivery_mode_check' and conrelid='public.events'::regclass)
+--   then alter table public.events add constraint events_delivery_mode_check check (delivery_mode in ('in_person','online','hybrid')); end if;
+-- end $$;
+--
+-- do $$ begin
+--   if not exists (select 1 from pg_constraint where conname='participants_attendance_mode_check' and conrelid='public.participants'::regclass)
+--   then alter table public.participants add constraint participants_attendance_mode_check check (attendance_mode is null or attendance_mode in ('in_person','online')); end if;
+-- end $$;
+--
+-- do $$ begin
+--   if not exists (select 1 from pg_constraint where conname='participants_submission_method_check' and conrelid='public.participants'::regclass)
+--   then alter table public.participants add constraint participants_submission_method_check check (submission_method is null or submission_method in ('attendant_assisted','self_completed','admin_added')); end if;
+-- end $$;
+--
+-- -- Backfill existing Walk-in records as in-person / attendant-assisted (safe general default).
+-- -- KNOWN ONLINE EVENTS (e.g. WETTS REFRESHER TRAINING) must be corrected separately — see below.
+-- update public.participants
+-- set attendance_mode = coalesce(attendance_mode, 'in_person'),
+--     submission_method = coalesce(submission_method, 'attendant_assisted')
+-- where reg_type = 'Walk-in';
+
+-- ── WETTS REFRESHER TRAINING manual correction (online event) ────────────────
+-- Step 1: confirm event
+-- select id, name, event_date, days, delivery_mode
+-- from public.events
+-- where name ilike '%WETTS%REFRESHER%'
+-- order by event_date desc;
+--
+-- Step 2: update event delivery_mode (replace <CONFIRMED_EVENT_ID>)
+-- update public.events set delivery_mode = 'online' where id = '<CONFIRMED_EVENT_ID>';
+--
+-- Step 3: correct linked Walk-in participants
+-- update public.participants
+-- set attendance_mode = 'online',
+--     submission_method = coalesce(submission_method, 'self_completed')
+-- where event_id = '<CONFIRMED_EVENT_ID>'
+--   and reg_type = 'Walk-in';

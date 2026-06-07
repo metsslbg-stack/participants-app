@@ -145,7 +145,7 @@
   </style>
 
   <script src="splash.js"></script>
-</head>
+  </head>
 <body>
 
   <!-- ── Header ── -->
@@ -216,6 +216,14 @@
         <p class="p-pos"  id="sign-pos"></p>
       </div>
 
+      <div id="hybrid-mode-sign" style="display:none;margin-bottom:1rem">
+        <span class="section-lbl">How are you joining today? *</span>
+        <div class="tab-row" style="margin-bottom:0.5rem">
+          <button class="tab-btn" id="mode-inperson-sign" onclick="setAttendanceMode('in_person')">📍 In-person</button>
+          <button class="tab-btn" id="mode-online-sign" onclick="setAttendanceMode('online')">💻 Online</button>
+        </div>
+      </div>
+
       <span class="section-lbl">Select Day *</span>
       <div class="day-row" id="sign-day-row"></div>
 
@@ -241,6 +249,15 @@
         <label>Full Name *</label>
         <input type="text" id="new-name" placeholder="Full name" />
       </div>
+
+      <div id="hybrid-mode-new" style="display:none;margin-bottom:1rem">
+        <span class="section-lbl">How are you joining today? *</span>
+        <div class="tab-row" style="margin-bottom:0.5rem">
+          <button class="tab-btn" id="mode-inperson-new" onclick="setAttendanceMode('in_person')">📍 In-person</button>
+          <button class="tab-btn" id="mode-online-new" onclick="setAttendanceMode('online')">💻 Online</button>
+        </div>
+      </div>
+
       <div class="form-row">
         <label>Sex *</label>
         <div class="sex-row">
@@ -297,6 +314,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="audit.js"></script>
   <script src="register.js"></script>
 
 
