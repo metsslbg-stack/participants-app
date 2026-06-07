@@ -51,7 +51,7 @@
       <!-- Event Readiness — admin diagnostic, hidden by default -->
       <div style="margin-bottom:1.25rem">
         <button id="readiness-toggle" type="button"
-          onclick="(function(){var p=document.getElementById('readiness-panel');p.style.display=(p.style.display==='none'||!p.style.display)?'block':'none';})()"
+          onclick="toggleReadiness()"
           style="display:inline-flex;align-items:center;gap:8px;background:#f8f8f8;border:1.5px solid #e0e0e0;border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;color:#555;cursor:pointer;font-family:inherit;letter-spacing:0.3px">
           <span id="readiness-toggle-dot" style="width:8px;height:8px;border-radius:50%;background:#bbb;flex-shrink:0"></span>
           <span>Event readiness</span>
@@ -77,7 +77,7 @@
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem">
 
         <!-- Row 1: Exports — most used during/after event -->
-        <button id="btn-export-pdf" onclick="exportEventPDF()" style="padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">📄 Export PDF</button>
+        <button id="btn-export-pdf" onclick="promptAdminAction('export')" style="padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">📄 Export PDF</button>
         <button id="btn-qr-sheet" onclick="exportEventQRSheet()" style="padding:14px 8px;background:white;border:1.5px solid var(--black);border-radius:var(--radius-md);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:center">🖨 Print QR Cards</button>
         <button id="btn-checkin-qr" onclick="showEventCheckinQR()" style="padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">📲 Scan &amp; Sign-in QR</button>
 

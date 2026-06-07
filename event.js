@@ -833,6 +833,13 @@ async function exportEventQRSheet() {
 // ── Admin password modal ──
 let _adminAction = null;
 
+function toggleReadiness() {
+  const p = document.getElementById('readiness-panel');
+  if (!p) return;
+  if (p.style.display === 'block') { p.style.display = 'none'; return; } // closing needs no password
+  promptAdminAction('readiness'); // opening the diagnostic requires the admin password
+}
+
 function promptAdminAction(action) {
   _adminAction = action;
   const modal = document.getElementById('admin-pwd-modal');
@@ -877,6 +884,8 @@ async function checkAdminPwd() {
   else if (action === 'editparts') toggleParticipantList();
   else if (action === 'certs')     openCertificatePicker(eventId);
   else if (action === 'cert-preview') openCertificatePicker(eventId);
+  else if (action === 'readiness') { const _p = document.getElementById('readiness-panel'); if (_p) _p.style.display = 'block'; }
+  else if (action === 'export')    exportEventPDF();
 }
 
 // ── Manage zone functions (admin only) ──
