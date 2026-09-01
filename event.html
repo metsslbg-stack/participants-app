@@ -20,7 +20,7 @@
 
   <div id="event-ui" style="display:none">
     <div class="reg-header">
-      <img id="reg-banner" src="banner.jpg" alt="" class="reg-header-banner" onerror="this.onerror=null;this.src='banner.jpg'" />
+      <img id="reg-banner" src="banner.jpg" alt="" class="reg-header-banner" onerror="this.onerror=null;this.src='banner.jpg';var h=this.closest('.reg-header');if(h)h.classList.remove('has-custom-banner');" />
       <div class="reg-header-content"><p class="reg-form-name">EVENT DASHBOARD</p>
       <p class="reg-header-sub" id="event-code-prog"></p>
       <span id="event-status-badge" style="display:none;margin-top:4px;padding:2px 12px;border-radius:20px;font-size:11px;font-weight:700"></span>

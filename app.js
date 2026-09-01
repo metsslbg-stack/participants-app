@@ -26,7 +26,7 @@ async function init() {
   if (data.program) eventPrefix = data.program.replace(/[^A-Z]/g, '').slice(0, 3) || 'P';
 
   document.getElementById('event-ui').style.display = 'block';
-  { const _b = document.getElementById('reg-banner'); if (_b) _b.src = getEventBannerUrl(data); }
+  { const _b = document.getElementById('reg-banner'); if (_b) { const _u = getEventBannerUrl(data); _b.src = _u; const _h = _b.closest('.reg-header'); if (_h) _h.classList.toggle('has-custom-banner', _u !== 'banner.jpg'); } }
   // Live email validation on blur
   document.getElementById('f-email').addEventListener('blur', () => {
     const v = validateEmail(document.getElementById('f-email').value.trim());

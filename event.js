@@ -372,7 +372,7 @@ async function init() {
   // Store for stats use
   window._eventDays = eventDays;
   document.getElementById('event-ui').style.display = 'block';
-  { const _b = document.getElementById('reg-banner'); if (_b) _b.src = getEventBannerUrl(ev); }
+  { const _b = document.getElementById('reg-banner'); if (_b) { const _u = getEventBannerUrl(ev); _b.src = _u; const _h = _b.closest('.reg-header'); if (_h) _h.classList.toggle('has-custom-banner', _u !== 'banner.jpg'); } }
   loadEventStats();
   document.getElementById('event-name').textContent = ev.name;
   document.getElementById('back-to-events-btn').style.display = 'inline-block';

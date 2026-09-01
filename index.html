@@ -19,7 +19,7 @@
 
   <div id="event-ui" style="display:none">
     <div class="reg-header">
-      <img id="reg-banner" src="banner.jpg" alt="" class="reg-header-banner" onerror="this.onerror=null;this.src='banner.jpg'" />
+      <img id="reg-banner" src="banner.jpg" alt="" class="reg-header-banner" onerror="this.onerror=null;this.src='banner.jpg';var h=this.closest('.reg-header');if(h)h.classList.remove('has-custom-banner');" />
       <div class="reg-header-content"><p class="reg-form-name" id="form-type-label">PRE-REG FORM</p>
       <p class="reg-header-sub" id="event-program"></p>
       <p class="reg-header-title" id="event-name"></p>
