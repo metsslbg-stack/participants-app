@@ -475,6 +475,12 @@ tr[data-pid]:hover td:first-child {
   margin: 0 auto;
   padding: 1.5rem;
 }
+/* Desktop: keep page content in a centered column instead of full-bleed edge-to-edge */
+.page-col-form { max-width: 620px; margin-left: auto; margin-right: auto; }
+.page-col-wide { max-width: 940px; margin-left: auto; margin-right: auto; }
+.page-col-form .reg-body,
+.page-col-wide .event-body { max-width: 100%; }
+.app-wrapper .reg-header { max-width: 100%; }
 
 /* Filter buttons */
 .filter-btn {
