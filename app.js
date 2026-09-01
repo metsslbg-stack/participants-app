@@ -10,6 +10,13 @@ const BASE_URL = window.location.origin + window.location.pathname.replace('inde
 let eventPrefix = 'P';
 let sigCanvas, sigCtx, drawing = false;
 
+function getEventBannerUrl(ev) {
+  var url = (ev && ev.banner_url) ? String(ev.banner_url).trim() : '';
+  if (!url) return 'banner.jpg';
+  if (!/^https?:\/\//i.test(url)) return 'banner.jpg';
+  return url;
+}
+
 async function init() {
   if (!eventId) { document.getElementById('no-event').style.display = 'block'; return; }
 
@@ -19,6 +26,7 @@ async function init() {
   if (data.program) eventPrefix = data.program.replace(/[^A-Z]/g, '').slice(0, 3) || 'P';
 
   document.getElementById('event-ui').style.display = 'block';
+  { const _b = document.getElementById('reg-banner'); if (_b) _b.src = getEventBannerUrl(data); }
   // Live email validation on blur
   document.getElementById('f-email').addEventListener('blur', () => {
     const v = validateEmail(document.getElementById('f-email').value.trim());

@@ -259,6 +259,12 @@ CREATE POLICY "public select audit" ON audit_log FOR SELECT USING (true);
 -- Step 3: correct linked Walk-in participants
 -- update public.participants
 -- set attendance_mode = 'online',
---     submission_method = coalesce(submission_method, 'self_completed')
+--     submission_method = 'self_completed'   -- overwrite: WETTS was fully online / self-completed
+-- -- If the submission method is uncertain, correct only the mode instead:
+-- --   set attendance_mode = 'online'
 -- where event_id = '<CONFIRMED_EVENT_ID>'
 --   and reg_type = 'Walk-in';
+
+-- Optional event-specific banner image URL (added later).
+-- events.banner_url text nullable. Blank/null => app shows default banner (banner.jpg).
+-- alter table public.events add column if not exists banner_url text;

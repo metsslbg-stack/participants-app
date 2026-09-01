@@ -20,7 +20,7 @@
 
   <div id="event-ui" style="display:none">
     <div class="reg-header">
-      <img src="banner.jpg" alt="" class="reg-header-banner" />
+      <img id="reg-banner" src="banner.jpg" alt="" class="reg-header-banner" onerror="this.onerror=null;this.src='banner.jpg'" />
       <div class="reg-header-content"><p class="reg-form-name">EVENT DASHBOARD</p>
       <p class="reg-header-sub" id="event-code-prog"></p>
       <span id="event-status-badge" style="display:none;margin-top:4px;padding:2px 12px;border-radius:20px;font-size:11px;font-weight:700"></span>
@@ -78,6 +78,7 @@
 
         <!-- Row 1: Exports — most used during/after event -->
         <button id="btn-export-pdf" onclick="promptAdminAction('export')" style="padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">📄 Export PDF</button>
+        <button id="btn-export-prereg" onclick="promptAdminAction('export-prereg')" style="padding:14px 8px;background:white;border:1.5px solid var(--black);border-radius:var(--radius-md);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-align:center">📋 Export Pre-reg CSV</button>
         <button id="btn-qr-sheet" onclick="exportEventQRSheet()" style="padding:14px 8px;background:white;border:1.5px solid var(--black);border-radius:var(--radius-md);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-align:center">🖨 Print QR Cards</button>
         <button id="btn-checkin-qr" onclick="showEventCheckinQR()" style="padding:14px 8px;background:var(--black);color:white;border:none;border-radius:var(--radius-md);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;text-align:center">📲 Scan &amp; Sign-in QR</button>
 

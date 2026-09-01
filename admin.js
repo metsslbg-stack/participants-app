@@ -56,7 +56,8 @@ async function submitEvent() {
       signatory_title: sigTitle || null,
       status: document.getElementById('e-status') ? document.getElementById('e-status').value : 'Draft',
       certificate_eligibility: document.getElementById('e-cert-eligibility') ? document.getElementById('e-cert-eligibility').value : 'signed_once',
-      delivery_mode: document.getElementById('e-delivery-mode') ? document.getElementById('e-delivery-mode').value : 'in_person'
+      delivery_mode: document.getElementById('e-delivery-mode') ? document.getElementById('e-delivery-mode').value : 'in_person',
+      banner_url: val('e-banner-url') || null
     }]).select();
 
     btn.textContent = 'Create event'; btn.disabled = false;
@@ -67,7 +68,7 @@ async function submitEvent() {
     // Capture sig file BEFORE clearing form
     const sigFile = document.getElementById('e-signatory-sig').files[0];
 
-    ['e-name','e-organizer','e-date','e-mel','e-code','e-prog-other','e-signatory-name','e-signatory-title','e-signatory-sig'].forEach(id => document.getElementById(id).value = '');
+    ['e-name','e-organizer','e-date','e-mel','e-code','e-prog-other','e-signatory-name','e-signatory-title','e-signatory-sig','e-banner-url'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     setMelRequired('e', false);
     document.getElementById('e-mel-required-group').style.display = 'none';
     document.getElementById('e-prog').selectedIndex = 0;
@@ -1449,6 +1450,7 @@ function renderEventCard(e, count, index) {
       '<p style="font-size:12px;color:#888">' + meta + '</p>' +
       '<span style="display:inline-block;margin-top:3px;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;background:' + sc.bg + ';color:' + sc.color + '">' + sc.label + '</span>' +
       '&nbsp;<span style="display:inline-block;margin-top:3px;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;background:' + dmc.bg + ';color:' + dmc.color + '">' + dmLabel + '</span>' +
+      (e.banner_url ? '&nbsp;<span style="display:inline-block;margin-top:3px;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#eef2ff;color:#3d4eac">Custom banner</span>' : '') +
     '</div>' +
 
 

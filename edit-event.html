@@ -81,6 +81,11 @@
       </div>
 
       <div class="form-group full" style="margin-top:1rem">
+        <label>Event banner URL (optional)</label>
+        <input type="text" id="e-banner-url" placeholder="Paste banner image URL, or leave blank to use default banner" oninput="checkChanges()" />
+      </div>
+
+      <div class="form-group full" style="margin-top:1rem">
         <label>Pre-reg comment or question for participants (optional)</label>
         <input type="text" id="e-mel" oninput="toggleMelRequired()" />
       </div>
@@ -144,6 +149,7 @@
       document.getElementById('e-date').value = ev.event_date || '';
       document.getElementById('e-days').value = ev.days || 1;
       document.getElementById('e-code').value = ev.event_code || '';
+      if (document.getElementById('e-banner-url')) document.getElementById('e-banner-url').value = ev.banner_url || '';
       if (document.getElementById('e-status')) document.getElementById('e-status').value = ev.status || 'Draft';
       if (document.getElementById('e-cert-eligibility')) document.getElementById('e-cert-eligibility').value = ev.certificate_eligibility || 'signed_once';
       if (document.getElementById('e-delivery-mode')) document.getElementById('e-delivery-mode').value = ev.delivery_mode || 'in_person';
@@ -182,7 +188,7 @@
         name: g('e-name'), organizer: g('e-organizer'), program: g('e-program'),
         date: g('e-date'), days: g('e-days'), code: g('e-code'),
         status: g('e-status'), cert: g('e-cert-eligibility'), dm: g('e-delivery-mode'),
-        mel: g('e-mel'), melReq: g('e-mel-required'), sigName: g('e-sig-name'), sigTitle: g('e-sig-title')
+        mel: g('e-mel'), melReq: g('e-mel-required'), sigName: g('e-sig-name'), sigTitle: g('e-sig-title'), banner: g('e-banner-url')
       };
     }
 
@@ -194,7 +200,7 @@
         name: g('e-name'), organizer: g('e-organizer'), program: g('e-program'),
         date: g('e-date'), days: g('e-days'), code: g('e-code'),
         status: g('e-status'), cert: g('e-cert-eligibility'), dm: g('e-delivery-mode'),
-        mel: g('e-mel'), melReq: g('e-mel-required'), sigName: g('e-sig-name'), sigTitle: g('e-sig-title')
+        mel: g('e-mel'), melReq: g('e-mel-required'), sigName: g('e-sig-name'), sigTitle: g('e-sig-title'), banner: g('e-banner-url')
       };
       return Object.keys(_snapshot).some(k => _snapshot[k] !== cur[k]);
     }
@@ -268,6 +274,7 @@
           mel_question_required: document.getElementById('e-mel-required').value,
           signatory_name: document.getElementById('e-sig-name').value.trim() || null,
           signatory_title: document.getElementById('e-sig-title').value.trim() || null,
+          banner_url: (document.getElementById('e-banner-url') && document.getElementById('e-banner-url').value.trim()) ? document.getElementById('e-banner-url').value.trim() : null,
           signatory_signature_url: sigUrl,
         }).eq('id', eventId);
 

@@ -344,6 +344,13 @@ function renderReadinessChecklist(ev, participantCount) {
   // Do not auto-open the panel.
 }
 
+function getEventBannerUrl(ev) {
+  var url = (ev && ev.banner_url) ? String(ev.banner_url).trim() : '';
+  if (!url) return 'banner.jpg';
+  if (!/^https?:\/\//i.test(url)) return 'banner.jpg';
+  return url;
+}
+
 async function init() {
   // Show Back to Events button if opened from admin
   const fromAdmin = new URLSearchParams(window.location.search).get('from') === 'admin';
@@ -365,6 +372,7 @@ async function init() {
   // Store for stats use
   window._eventDays = eventDays;
   document.getElementById('event-ui').style.display = 'block';
+  { const _b = document.getElementById('reg-banner'); if (_b) _b.src = getEventBannerUrl(ev); }
   loadEventStats();
   document.getElementById('event-name').textContent = ev.name;
   document.getElementById('back-to-events-btn').style.display = 'inline-block';
@@ -833,6 +841,43 @@ async function exportEventQRSheet() {
 // ── Admin password modal ──
 let _adminAction = null;
 
+async function exportPreRegCSV() {
+  try {
+    const [evRes, partsRes, attRes] = await Promise.all([
+      db.from('events').select('name').eq('id', eventId).single(),
+      db.from('participants').select('*').eq('event_id', eventId),
+      db.from('attendance').select('participant_id').eq('event_id', eventId)
+    ]);
+    const ev = evRes.data;
+    const parts = partsRes.data || [];
+    const preReg = parts
+      .filter(p => (p.reg_type || '').toLowerCase().includes('pre'))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    if (!preReg.length) { alert('No pre-registered participants found for this event.'); return; }
+    const signedIds = new Set((attRes.data || []).map(a => a.participant_id));
+    const headers = ['Code','Name','Sex','Organization','Position','Program','Phone','Email','Created At','Attendance Mode','Signature Status'];
+    const rows = preReg.map(p => [
+      p.code || '', p.name || '', p.sex || '', p.org || '', p.position_title || '', p.prog || '',
+      p.phone || '', p.email || '',
+      p.created_at ? new Date(p.created_at).toISOString().slice(0, 10) : '',
+      p.attendance_mode || '',
+      signedIds.has(p.id) ? 'Signed' : 'Not signed'
+    ]);
+    const cell = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const csv = [headers, ...rows].map(r => r.map(cell).join(',')).join('\r\n');
+    const evName = (ev && ev.name ? ev.name : 'event').replace(/\s+/g, '-');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'prereg-' + evName + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Could not export pre-reg list: ' + (e.message || e));
+  }
+}
+
 function toggleReadiness() {
   const p = document.getElementById('readiness-panel');
   if (!p) return;
@@ -886,6 +931,7 @@ async function checkAdminPwd() {
   else if (action === 'cert-preview') openCertificatePicker(eventId);
   else if (action === 'readiness') { const _p = document.getElementById('readiness-panel'); if (_p) _p.style.display = 'block'; }
   else if (action === 'export')    exportEventPDF();
+  else if (action === 'export-prereg') exportPreRegCSV();
 }
 
 // ── Manage zone functions (admin only) ──
