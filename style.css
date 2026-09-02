@@ -481,6 +481,8 @@ tr[data-pid]:hover td:first-child {
 .page-col-form .reg-body,
 .page-col-wide .event-body { max-width: 100%; }
 .app-wrapper .reg-header { max-width: 100%; }
+/* Pre-reg form fields sit outside .reg-body; give them side padding (matters most on mobile) */
+.reg-fields-wrap { padding-left: 1.25rem; padding-right: 1.25rem; }
 
 /* Filter buttons */
 .filter-btn {
