@@ -45,9 +45,28 @@ async function init() {
   document.getElementById('event-name').textContent = data.name;
   const displayProg = (data.program && data.program !== 'Other') ? data.program : null;
   document.getElementById('event-program').textContent = [data.event_code, displayProg].filter(Boolean).join(' · ') || 'Registration';
+  // Event date(s): show a labelled range for multi-day events so it never looks like a one-day event
+  var _dateText = null;
+  if (data.event_date) {
+    var _days = parseInt(data.days, 10) || 1;
+    var _start = new Date(data.event_date);
+    var _fmtFull = { day:'numeric', month:'long', year:'numeric' };
+    if (_days > 1) {
+      var _end = new Date(_start);
+      _end.setDate(_end.getDate() + _days - 1);
+      var _sameMonth = _start.getMonth() === _end.getMonth() && _start.getFullYear() === _end.getFullYear();
+      var _startStr = _sameMonth
+        ? _start.toLocaleDateString('en-GB', { day:'numeric' })
+        : _start.toLocaleDateString('en-GB', _fmtFull);
+      var _endStr = _end.toLocaleDateString('en-GB', _fmtFull);
+      _dateText = 'Event dates: ' + _startStr + ' – ' + _endStr + ' (' + _days + ' days)';
+    } else {
+      _dateText = 'Event date: ' + _start.toLocaleDateString('en-GB', _fmtFull);
+    }
+  }
   document.getElementById('event-meta').textContent = [
     data.organizer,
-    data.event_date ? new Date(data.event_date).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }) : null
+    _dateText
   ].filter(Boolean).join(' · ');
   document.title = data.name;
 
