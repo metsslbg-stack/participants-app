@@ -59,9 +59,9 @@ async function init() {
         ? _start.toLocaleDateString('en-GB', { day:'numeric' })
         : _start.toLocaleDateString('en-GB', _fmtFull);
       var _endStr = _end.toLocaleDateString('en-GB', _fmtFull);
-      _dateText = 'Event dates: ' + _startStr + ' – ' + _endStr + ' (' + _days + ' days)';
+      _dateText = 'Event Dates: ' + _startStr + ' – ' + _endStr + ' (' + _days + ' days)';
     } else {
-      _dateText = 'Event date: ' + _start.toLocaleDateString('en-GB', _fmtFull);
+      _dateText = 'Event Date: ' + _start.toLocaleDateString('en-GB', _fmtFull);
     }
   }
   document.getElementById('event-meta').textContent = [
